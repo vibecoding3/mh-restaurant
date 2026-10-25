@@ -4,7 +4,26 @@
 
 You play a Palico chef who has just taken over a run-down canteen in a hunting village. Hunters come in before their quests and order hearty meals. Cook them well and the hunters set out with better buffs, come back alive, and bring you rare monster ingredients. Cook them badly and they get carted, so your reputation suffers.
 
-> **Status:** pre-production. Only the design documents exist so far. No playable build yet.
+> **Status:** playable prototype (M1/M2). Greybox art drawn in code, synthesized sound effects.
+>
+> **▶ Play it in your browser: https://vibecoding3.github.io/mh-restaurant/**
+>
+> The game runs 100% offline in the browser. There is no backend; progress is saved in `localStorage`.
+
+## How to play the prototype
+
+1. **Morning prep.** Buy ingredients from Bartholo (prices change daily), pick up to 4 dishes for the menu, and buy upgrades.
+2. **Service shift (about 2 min).** Tap a hunter at the door to seat them. Their order appears as a ticket above their table. Tap the glowing station (or press `1` `2` `3`) to cook:
+   - **Chopping Board:** tap the ingredients in numbered order before the timer runs out.
+   - **BBQ Spit:** hold the mouse, a finger or `Space` to spin the meat, and release in the golden zone.
+   - **Skewer Grill:** flip each skewer when it turns golden, twice. `Space` flips the hottest one.
+
+   When the ticket says READY, tap it (or the hunter) to serve. Each hunter wants a buff (the badge by their hearts); matching it earns bonus tips. `Esc` pauses the game.
+3. **Quest report.** See whether each fed hunter succeeded, barely made it or got carted. Successful hunters bring back monster materials that unlock the best recipes.
+
+Goal: reach ⭐60 reputation by the end of Day 5 to pass the Rank Trial. After that, the game continues in endless mode.
+
+Debug: add `?shift=20` to the URL to shorten a shift to 20 seconds.
 
 ## Planned features
 
@@ -16,7 +35,7 @@ You play a Palico chef who has just taken over a run-down canteen in a hunting v
 - **Village events.** Festivals, rush hours, and the occasional monster crashing into the dining hall.
 - **Progression across regions.** Move from Low Rank to High Rank to Master Rank menus, each with new hunters, monsters and recipes.
 
-## Tech stack (planned)
+## Tech stack
 
 | Area      | Choice                                          |
 |-----------|-------------------------------------------------|
@@ -32,13 +51,16 @@ You play a Palico chef who has just taken over a run-down canteen in a hunting v
 
 ## Getting started
 
-The project has no code yet. Once the scaffold is in place:
-
 ```bash
 npm install
 npm run dev      # local dev server
-npm run build    # production build into dist/
+npm test         # unit tests for the pure game logic (src/core)
+npm run build    # type-check + production build into dist/
 ```
+
+Code layout follows the GDD: `src/core/` is pure, Phaser-free game logic (economy, cooking grades, quest resolution, save); `src/data/` holds the content definitions; `src/scenes/` holds the Phaser scenes and minigames.
+
+Every push to `main` runs the tests, builds the game and deploys it to GitHub Pages via `.github/workflows/deploy.yml`.
 
 ## Disclaimer
 
