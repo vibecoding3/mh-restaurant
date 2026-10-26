@@ -114,6 +114,8 @@ Detailed plan: [PLAN-v0.3.md](PLAN-v0.3.md).
 - [x] Tag a release (v0.3.0) for the changes made since v0.2.0
 
 ### Next: rest of Low Rank, v0.4 (§9.5 M4)
+Detailed plan: [PLAN-v0.4.md](PLAN-v0.4.md). v0.4 covers the Soup Pot, kitchen Palicoes, more monsters, VIPs, Jagras raids, Rush Hour and the Rank Trial shift; the rest of this list moves to v0.5.
+
 - [ ] **Soup Pot** station (Soup Felyne): keep the heat in the green zone and add ingredients on cue (§4.2)
 - [ ] **Kitchen staff:** the Oven Felyne and Soup Felyne auto-run stations; Waiter and Forager roles; staff level-ups (§4.7)
 - [ ] **Botanical Research** (Chief Botanist): grows vegetables over 1–3 days (§4.5)

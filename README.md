@@ -74,6 +74,7 @@ Following the [GDD](docs/GDD.md), the Low Rank is polished first, then High Rank
 - [v0.2 Implementation Plan](docs/PLAN-v0.2.md): the canon content pass, with the design decisions behind it.
 - [Progress report](docs/PROGRESS.md): what is implemented and what is still to come.
 - [v0.3 Implementation Plan](docs/PLAN-v0.3.md): the plan for the vertical slice (tutorial, balancing, presets, Ingredient book, art pass, settings).
+- [v0.4 Implementation Plan](docs/PLAN-v0.4.md): the plan for the rest of Low Rank (Soup Pot, kitchen Palicoes, VIPs, events, the Rank Trial shift).
 - [Changelog](CHANGELOG.md): what changed in each version.
 - [Asset licenses](ASSETS_LICENSES.md): every third-party icon, sound, track and font, with author and license.
 
