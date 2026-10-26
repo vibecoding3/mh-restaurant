@@ -285,7 +285,7 @@ export class ServiceScene extends Phaser.Scene {
     const patienceMax = type.patience * 1000 * (hasUpgrade(s, 'lanterns') ? 1.25 : 1);
 
     const view = this.add.container(DOOR.x, DOOR.y).setDepth(10);
-    const sprite = drawHunter(this, armor, weapon, type.id === 'veteran');
+    const sprite = drawHunter(this, armor, type.id === 'veteran');
     const need = NEED_LABELS[monster.need];
     const badge = this.add.circle(-70, -196, 22, 0x2a1a0e, 0.85);
     const needIcon = icon(this, -70, -196, need.icon, 32, need.tint);

@@ -160,7 +160,7 @@ export class ReportScene extends Phaser.Scene {
     fg.lineStyle(6, 0x2a1a0e, 1).strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 18);
     front.add(fg);
     const L = -CARD_W / 2 + 16;
-    front.add(drawHunter(this, armor, weapon, record.typeId === 'veteran').setPosition(L + 44, -38).setScale(0.62));
+    front.add(drawHunter(this, armor, record.typeId === 'veteran').setPosition(L + 44, -38).setScale(0.62));
     front.add(txt(this, L + 92, -150, hunterLabel(record.armorId), 22, INK, { fontStyle: 'bold' }));
     front.add(txt(this, L + 92, -124, weapon.name, 19, INK_SOFT));
     front.add(txt(this, L + 92, -94, monster.name, 22, INK, { fontStyle: 'bold' }));

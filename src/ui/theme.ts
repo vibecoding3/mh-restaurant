@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { ArmorSet, Weapon } from '../core/types';
+import type { ArmorSet } from '../core/types';
 
 export const W = 1920;
 export const H = 1080;
@@ -205,78 +205,11 @@ function shade(color: number, amount: number): number {
   return (amount < 0 ? c.darken(-amount) : c.lighten(amount)).color;
 }
 
-/** Weapon silhouette on the hunter's back. */
-function drawWeapon(g: Phaser.GameObjects.Graphics, weapon: Weapon, id: string): void {
-  const steel = 0xb8c0c6;
-  const grip = 0x5a4228;
-  switch (id) {
-    case 'gs':
-      g.fillStyle(steel, 1).fillRect(14, -150, 26, 108).fillTriangle(14, -150, 40, -150, 27, -168);
-      g.fillStyle(grip, 1).fillRect(6, -46, 42, 8).fillRect(22, -40, 10, 26);
-      break;
-    case 'ls':
-      g.fillStyle(steel, 1).fillRect(26, -170, 8, 128).fillTriangle(26, -170, 34, -170, 30, -182);
-      g.fillStyle(grip, 1).fillRect(20, -44, 20, 6).fillRect(26, -40, 8, 30);
-      break;
-    case 'sns':
-      g.fillStyle(steel, 1).fillRect(28, -110, 8, 60);
-      g.fillStyle(grip, 1).fillRect(24, -52, 16, 6);
-      g.fillStyle(shade(steel, -20), 1).fillCircle(-30, -64, 18);
-      break;
-    case 'db':
-      g.fillStyle(steel, 1).fillRect(18, -112, 7, 56).fillRect(34, -112, 7, 56);
-      g.fillStyle(grip, 1).fillRect(16, -58, 11, 14).fillRect(32, -58, 11, 14);
-      break;
-    case 'hammer':
-      g.fillStyle(grip, 1).fillRect(26, -140, 8, 110);
-      g.fillStyle(shade(steel, -25), 1).fillRoundedRect(4, -164, 52, 34, 6);
-      break;
-    case 'hh':
-      g.fillStyle(grip, 1).fillRect(26, -120, 8, 92);
-      g.fillStyle(0xc8a050, 1).fillEllipse(30, -132, 58, 34).fillCircle(10, -146, 8).fillCircle(50, -146, 8);
-      break;
-    case 'lance':
-      g.fillStyle(steel, 1).fillTriangle(20, -40, 40, -40, 30, -190);
-      g.fillStyle(shade(steel, -20), 1).fillRoundedRect(-44, -96, 30, 64, 8);
-      break;
-    case 'gl':
-      g.fillStyle(steel, 1).fillRect(20, -170, 20, 130);
-      g.fillStyle(0x3a3a3a, 1).fillCircle(30, -170, 9);
-      g.fillStyle(shade(steel, -20), 1).fillRoundedRect(-44, -96, 30, 64, 8);
-      break;
-    case 'sa':
-      g.fillStyle(grip, 1).fillRect(26, -132, 8, 100);
-      g.fillStyle(steel, 1).fillTriangle(30, -150, 62, -128, 30, -104);
-      break;
-    case 'cb':
-      g.fillStyle(steel, 1).fillRoundedRect(14, -142, 22, 90, 4);
-      g.fillStyle(0xd0b040, 1).fillRect(18, -98, 14, 6);
-      g.fillStyle(shade(steel, -20), 1).fillRoundedRect(-44, -96, 30, 60, 8);
-      break;
-    case 'ig':
-      g.fillStyle(grip, 1).fillRect(26, -160, 6, 130);
-      g.fillStyle(steel, 1).fillTriangle(22, -160, 36, -160, 29, -186).fillTriangle(22, -30, 36, -30, 29, -6);
-      break;
-    case 'lbg':
-      g.fillStyle(0x4a4a4a, 1).fillRect(14, -112, 12, 64);
-      g.fillStyle(grip, 1).fillRoundedRect(10, -60, 22, 26, 4);
-      break;
-    case 'hbg':
-      g.fillStyle(0x4a4a4a, 1).fillRect(8, -138, 22, 92).fillRect(30, -120, 10, 40);
-      g.fillStyle(grip, 1).fillRoundedRect(6, -54, 28, 24, 4);
-      break;
-    case 'bow':
-      g.lineStyle(7, 0x8a5a2a, 1).beginPath().arc(4, -90, 62, -1.1, 1.1, false).strokePath();
-      g.lineStyle(2, 0xe8e0d0, 1).lineBetween(4 + Math.cos(-1.1) * 62, -90 + Math.sin(-1.1) * 62, 4 + Math.cos(1.1) * 62, -90 + Math.sin(1.1) * 62);
-      break;
-    default:
-      g.fillStyle(steel, 1).fillRect(26, -120, 8, 70);
-  }
-  void weapon;
-}
-
-/** Draws a chibi Research Commission hunter (feet at y=0) in an armor set's colors. */
-export function drawHunter(scene: Phaser.Scene, armor: ArmorSet, weapon: Weapon, veteran: boolean): Phaser.GameObjects.Container {
+/**
+ * Draws a chibi Research Commission hunter (feet at y=0) in an armor set's colors.
+ * No weapon: hunters leave it outside before sitting down in the canteen.
+ */
+export function drawHunter(scene: Phaser.Scene, armor: ArmorSet, veteran: boolean): Phaser.GameObjects.Container {
   const c = scene.add.container(0, 0);
   const g = scene.add.graphics();
   const main = armor.main;
@@ -284,7 +217,6 @@ export function drawHunter(scene: Phaser.Scene, armor: ArmorSet, weapon: Weapon,
   const dark = shade(main, -25);
 
   g.fillStyle(0x000000, 0.25).fillEllipse(0, 0, 76, 16);
-  drawWeapon(g, weapon, weapon.id);
   // legs and boots
   g.fillStyle(dark, 1).fillRoundedRect(-22, -36, 18, 34, 5).fillRoundedRect(4, -36, 18, 34, 5);
   g.fillStyle(trim, 1).fillRoundedRect(-24, -12, 22, 12, 4).fillRoundedRect(2, -12, 22, 12, 4);

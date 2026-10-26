@@ -8,6 +8,7 @@ All notable changes to Hunter's Canteen. The project follows [Semantic Versionin
   - Six ingredients from the dish are tossed up over the board.
   - Hold the mouse button and slash through them before they fall.
   - Missing none is Well-done, missing 1 or 2 is Rare, and missing 3 or more is Burnt.
+- **Customers no longer carry weapons.** Hunters leave their weapon outside before sitting down in the canteen.
 
 ## 0.2.0: Monster Hunter: World canon pass (2026-10-26)
 
