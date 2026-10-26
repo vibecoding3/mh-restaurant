@@ -67,9 +67,9 @@ describe('cooking', () => {
     expect(gradeGrill(0.4)).toBe(1);
     expect(gradeGrill(0.8)).toBe(2);
     expect(gradeGrill(1.1)).toBe(0);
-    expect(gradeChop(0, false)).toBe(2);
-    expect(gradeChop(2, false)).toBe(1);
-    expect(gradeChop(0, true)).toBe(0);
+    expect(gradeChop(0)).toBe(2);
+    expect(gradeChop(2)).toBe(1);
+    expect(gradeChop(3)).toBe(0);
   });
 });
 

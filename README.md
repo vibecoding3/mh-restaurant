@@ -22,7 +22,7 @@ You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster
    - **Delivery requests:** hand items to the Provisions Manager to unlock new ingredients.
    - **Smithy upgrades:** buy canteen improvements from the Second Fleet Master's team.
 2. **Service shift (about 2 min).** Click a hunter at the door to seat them. The icon over their head shows what they need for their quest. Their order appears as a ticket on the rail. Click the glowing station (or press `1` `2` `3`) to cook:
-   - **Chopping Board:** click the ingredients in numbered order before the timer runs out.
+   - **Chopping Board:** the ingredients are tossed up over the board. Hold the mouse button and slash through them before they fall, Fruit Ninja style.
    - **BBQ Spit:** hold the mouse button or `Space` to spin the Raw Meat, and release in the gold for a Well-Done Steak.
    - **Grill:** flip each cut when it turns golden, twice. `Space` flips the hottest one.
 

@@ -2,6 +2,13 @@
 
 All notable changes to Hunter's Canteen. The project follows [Semantic Versioning](https://semver.org); see GDD §9.1.
 
+## Unreleased
+
+- **Chopping Board is now a slicing minigame, Fruit Ninja style.**
+  - Six ingredients from the dish are tossed up over the board.
+  - Hold the mouse button and slash through them before they fall.
+  - Missing none is Well-done, missing 1 or 2 is Rare, and missing 3 or more is Burnt.
+
 ## 0.2.0: Monster Hunter: World canon pass (2026-10-26)
 
 ### Content

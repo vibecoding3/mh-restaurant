@@ -142,7 +142,7 @@ Each station is a short skill check, graded **Burnt / Rare / Well-done**. These 
 
 | Station | Minigame | Hub / unlock |
 |---|---|---|
-| **Chopping Board** | Tap the ingredients in order. | Astera, start |
+| **Chopping Board** | The ingredients are tossed into the air: slash through them with the mouse before they fall (Fruit Ninja style). Each one that drops lowers the grade. | Astera, start |
 | **Grill** (the Meowscular Chef's flame-searing) | Flip the cuts when they turn golden. | Astera, start |
 | **BBQ Spit** | Hold to spin the meat and release in the golden window, exactly as in *World*. Produces Rare Steak, Well-Done Steak or Burnt Meat as side orders. | Astera, start |
 | **Soup Pot** (Soup Felyne) | Keep the heat gauge in the green zone and add ingredients on cue. | Astera, Low Rank 3 |

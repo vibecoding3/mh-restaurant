@@ -32,9 +32,9 @@ export function gradeGrill(heat: number): Quality {
   return 1;
 }
 
-/** Chopping board grade from mistakes made and whether the timer ran out. */
-export function gradeChop(mistakes: number, timedOut: boolean): Quality {
-  if (timedOut || mistakes > 2) return 0;
-  if (mistakes === 0) return 2;
-  return 1;
+/** Chopping board grade from how many tossed ingredients fell without being sliced. */
+export function gradeChop(missed: number): Quality {
+  if (missed === 0) return 2;
+  if (missed <= 2) return 1;
+  return 0;
 }
