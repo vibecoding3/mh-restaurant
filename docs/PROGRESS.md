@@ -103,6 +103,8 @@ This document summarizes what works in the game today and what the [Game Design 
 ## Yet to be implemented
 
 ### Next: v0.3, vertical slice (§9.3, §9.4)
+Detailed plan: [PLAN-v0.3.md](PLAN-v0.3.md).
+
 - [ ] Handler tutorial on Day 1
 - [ ] Balancing from playtests: the reputation pace, the hunter arrival rate, and money (Zenny comes in fast at the moment)
 - [ ] Favorite Platter presets for repeated orders
