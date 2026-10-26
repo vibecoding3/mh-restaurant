@@ -48,6 +48,7 @@ Debug: add `?shift=20` to the URL to shorten a shift to 20 seconds.
 ## Documentation
 
 - [Game Design Document](docs/GDD.md): vision, core loop, systems, content and roadmap.
+- [v0.2 Implementation Plan](docs/PLAN-v0.2.md): the next version (canon content pass), with the design decisions behind it.
 
 ## Getting started
 
