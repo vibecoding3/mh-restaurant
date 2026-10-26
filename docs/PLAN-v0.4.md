@@ -1,6 +1,10 @@
 # Hunter's Canteen: v0.4 Implementation Plan (Low Rank, core slice)
 
-> **Status:** approved plan, not yet implemented. Written 2026-10-27.
+> **Status:** implemented and released as v0.4.0 on 2026-10-27. Deviations from the plan, found in balancing (§7):
+> - The trial goal is 3 needs met, not 4.
+> - Kitchen Palicoes cost 2000z and 3000z, plus 150z a day each, and can only be hired from Day 5.
+> - A sloppy player passes the trial by Day 10, not Day 8.
+> - The staff are only a partial Zenny sink, so the "Day 10 Zenny under 3× Day 5" check was replaced by "both Palicoes affordable by Day 10".
 
 ## Context
 v0.3.0 shipped the vertical slice. GDD §9.3 and milestone M4 ("Low Rank complete") list about 12 systems, which is too many for one release. v0.3 also left two problems:

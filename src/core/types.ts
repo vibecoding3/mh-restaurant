@@ -1,4 +1,4 @@
-export type StationId = 'board' | 'spit' | 'grill';
+export type StationId = 'board' | 'spit' | 'grill' | 'pot';
 
 /** 0 = Burnt, 1 = Rare, 2 = Well-done ("So tasty!"), as on the BBQ Spit in World. */
 export type Quality = 0 | 1 | 2;

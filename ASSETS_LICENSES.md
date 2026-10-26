@@ -18,6 +18,7 @@ Icons by **Lorc**, **Delapouite**, **DarkZaitzev**, **Guard13007** and **SeregaC
 | board.svg | cleaver | Delapouite |
 | book.svg | open-book | Lorc |
 | cart.svg | cartwheel | Lorc |
+| cauldron.svg | cauldron | Lorc |
 | celery.svg | leek | Delapouite |
 | check.svg | check-mark | Delapouite |
 | chef.svg | chef-toque | Delapouite |

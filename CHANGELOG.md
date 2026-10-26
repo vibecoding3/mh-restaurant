@@ -2,6 +2,27 @@
 
 All notable changes to Hunter's Canteen. The project follows [Semantic Versioning](https://semver.org); see GDD §9.1.
 
+## 0.4.0: Low Rank core (2026-10-27)
+
+### New
+- **Soup Pot**, the fourth station (key `4`). From Day 3, Fish and Veggie Platters go Chopping Board → Soup Pot. Hold the fire (or Space) to keep the heat in the green, and click the pot when the Handler calls for an ingredient. Minigame assist widens the green band and holds the cues open longer.
+- **Kitchen Palicoes.** From Day 5, hire up to two (2000z, then 3000z) in the new **Kitchen** tab of morning prep and put each on a station. They cook its orders by themselves: Rare at first, Well-done after 25 dishes. Wages are 150z each morning; a Palico who can't be paid takes the day off, with no debt.
+- **VIP regulars** from Day 4: Field Team Leader, the Huntsman, the Seeker and the Admiral, with a gold name plate. They pay double, give +3 reputation for a Well-done meal that meets their need, and hunt 4-star monsters or harder. A VIP walkout costs 2 reputation.
+- **Jagras raids** from Day 3: a pack runs in after your stock. Click each Jagras to shoo it; one that reaches the counter eats one ingredient.
+- **The Rank Trial is a special shift.** 170 reputation opens it from Day 5. The Commander wants 8 hunters served at Rare or better, 3 of them with what they need. The HUD tracks it live, and a failed trial is retried the next day.
+- **Rush Hour** two days after the trial, before "One for the History Books" (the Zorah Magdaros operation): more hunters, a little more patience and +1 reputation per meal. Serving it completes Act I.
+- **Five more Low Rank monsters** with their *World* star ratings: Paolumu (4★) and Legiana (5★) in the Coral Highlands, Odogaron (5★) in the Rotten Vale, Rathalos (5★) and Diablos (5★).
+- Five new Handler tips: the Soup Pot, the Kitchen tab, the Rank Trial, VIPs and raids.
+
+### Changed
+- Morning prep's right column has **Smithy | Kitchen | Deliveries** tabs. On the Rank Trial and Rush Hour days, the Handler's tip explains the day.
+- The service floor has four narrower stations; staffed stations show their kitchen Palico and a progress ring.
+- **Canon fix:** the design doc's "Oven Felyne" and "Soup Felyne" could not be confirmed in *World* and are gone; the staff are unnamed kitchen Palicoes.
+- The balance simulation now covers 10 days with staff, wages, VIPs, raids, the trial shift and Rush Hour.
+
+### Saves
+- The save schema is now **v4** (staff, Rush Hour and Act I progress). Older saves are wiped with a notice on the title screen.
+
 ## 0.3.0: Vertical slice (2026-10-26)
 
 ### New

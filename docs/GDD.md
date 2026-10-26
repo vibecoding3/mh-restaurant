@@ -2,15 +2,23 @@
 
 | | |
 |---|---|
-| **Document version** | 0.4 |
+| **Document version** | 0.5 |
 | **Date** | 2026-10-26 |
-| **Game version covered** | 0.3 (vertical slice, released) → 0.4 (next) |
+| **Game version covered** | 0.4 (Low Rank core, released) → 0.5 (next) |
 | **Genre** | 2D restaurant management / time management |
 | **Platform** | Desktop web browsers, 100% offline. English only. |
 | **Engine** | Phaser 3 + TypeScript + Vite |
 | **Default resolution** | 1920 × 1080, capped at 60 FPS |
 | **Session length** | 4–6 min per service shift; 20–40 min per sitting |
 | **Status** | Unofficial, non-commercial fan game based on *Monster Hunter: World* (and its *Iceborne* expansion) |
+
+### Changes since document version 0.4
+These record the design decisions made for game version 0.4 (full list in [PLAN-v0.4.md](PLAN-v0.4.md)).
+- **No "Oven Felyne" or "Soup Felyne".** Neither name could be confirmed in *World*, so the kitchen staff are unnamed **kitchen Palicoes**, as in the Canteen cutscenes.
+- **The Soup Pot cooks no new dish.** From Day 3, Fish and Veggie Platters go Chopping Board → Soup Pot; the Meat Platter stays Chopping Board → Grill.
+- **The Rank Trial is a special shift** (§4.10): 170 reputation opens it from Day 5, and the Commander's goal is 8 hunters served at Rare or better, 3 of them with their need met. It repeats until passed.
+- **Act I ends with a Rush Hour** two days after the trial, before "One for the History Books", the operation against Zorah Magdaros.
+- **Roadmap:** Low Rank is split in two. v0.5 finishes it (hub, Botanical Research, Grimalkyne trades, decor, daily skills, Vouchers, Poogie); High Rank moves to v0.6 and Master Rank to v0.7.
 
 ### Changes since document version 0.2
 These record the design decisions made for game version 0.2 (full list in [PLAN-v0.2.md](PLAN-v0.2.md)).
@@ -76,7 +84,7 @@ Warm, comedic and food-obsessed, like the Canteen cutscenes in *World*. The Pali
 | Character | Role in this game |
 |---|---|
 | **Meowscular Chef** | **Player character.** Head chef of the Astera Canteen and a former First Fleet Palico. |
-| **Oven Felyne, Soup Felyne** | The Meowscular Chef's kitchen crew in Astera. They become the auto-run station staff (§4.7). |
+| **Kitchen Palicoes** (unnamed) | The Meowscular Chef's kitchen crew in Astera. They become the auto-run station staff (§4.7). |
 | **The Handler** | Tutorial guide and quest handler. She reports each fed hunter's quest outcome after every shift, and she is also the canteen's most frequent customer. |
 | **The Commander** | Leader of the Research Commission. He sets the Rank Trials and approves canteen expansions. |
 | **Field Team Leader, the Huntsman, the Seeker, the Admiral** | Recurring VIP regulars with their own food preferences. |
@@ -108,7 +116,7 @@ Hunter arrives → seat them → read their ticket → pick ingredients → cook
 ```
 
 ### 3.2 Daily loop
-1. **Morning prep:** check stock, buy ingredients (Argosy and deliveries), see today's **fresh ingredients**, and assign the Oven Felyne and Soup Felyne to stations.
+1. **Morning prep:** check stock, buy ingredients (Argosy and deliveries), see today's **fresh ingredients**, and assign kitchen Palicoes to stations.
 2. **Service shift:** cook and serve until the closing gong.
 3. **Quest report:** the Handler reports how each fed hunter did on their quest. Successful hunts complete delivery requests and unlock ingredients.
 4. **Evening:** spend Zenny, buy Smithy upgrades, collect from Botanical Research, and read Handler and Commander story beats.
@@ -145,12 +153,12 @@ Each station is a short skill check, graded **Burnt / Rare / Well-done**. These 
 | **Chopping Board** | The ingredients are tossed into the air: slash through them with the mouse before they fall (Fruit Ninja style). Each one that drops lowers the grade. | Astera, start |
 | **Grill** (the Meowscular Chef's flame-searing) | Flip the cuts when they turn golden. | Astera, start |
 | **BBQ Spit** | Hold to spin the meat and release in the golden window, exactly as in *World*. Produces Rare Steak, Well-Done Steak or Burnt Meat as side orders. | Astera, start |
-| **Soup Pot** (Soup Felyne) | Keep the heat gauge in the green zone and add ingredients on cue. | Astera, Low Rank 3 |
-| **Oven** (Oven Felyne; also used for Oven Roast) | Set it and forget it, but it burns if left alone. Oven Roast turns surplus ingredients into Rations, Nutrients or Lifepowder that can be sold. | Astera, High Rank |
+| **Soup Pot** (the Canteen's cauldron) | Keep the heat gauge in the green zone and add ingredients on cue. The second step of Fish and Veggie Platters. | Astera, Day 3 |
+| **Oven** (also used for Oven Roast) | Set it and forget it, but it burns if left alone. Oven Roast turns surplus ingredients into Rations, Nutrients or Lifepowder that can be sold. | Astera, High Rank |
 | **Drinks Keg** | Pour drinks to the right fill line. Drinks carry the Perception, Fortune, Preparation and Trailblazer skills. | Seliana, Master Rank |
 | **Stew Cauldron and Gratin Oven** (the Grammeowster Chef's specialties) | Long cooks that need stirring and timing while you handle other orders. | Seliana, Master Rank |
 
-The Oven Felyne and Soup Felyne, plus extra kitchen Palicoes later on, can **auto-run** a station at a fixed quality. This frees the player to focus elsewhere.
+Kitchen Palicoes can **auto-run** a station at a fixed quality (Rare, then Well-done after 25 dishes). This frees the player to focus elsewhere.
 
 ### 4.3 Meals: canon platters only
 *World's* Canteen has no fixed named dishes. A meal is a **platter built from ingredients**, and the ingredient mix sets its buffs. Hunter's Canteen keeps that model exactly:
@@ -204,10 +212,11 @@ v0.2 implements the pre-made platters, the Chef's Choice Platter and the BBQ Spi
 - **Income:** platter price × quality multiplier + tips (scaled by patience left) + quest bonuses. The base platter price is anchored to *World's* meal cost of **150 z**.
 - **Expenses:** ingredients, kitchen-Palico wages (paid in fish), Smithy upgrades and decor.
 - Target pacing: the player can afford one meaningful upgrade every 1–2 days.
+- **Tuned numbers (v0.4):** kitchen Palicoes cost 2000z and 3000z plus 150z a day each, from Day 5. VIPs pay double and give +3 reputation for a Well-done meal that meets their need. In the simulation an average player passes the Rank Trial shift by Day 6, hires the first Palico on Day 6 and completes Act I around Day 7.
 - **Tuned numbers (v0.3):** Smithy upgrades cost 1000z (Hanging Lanterns), 1800z (Iron Spit Frame), 3000z (Canteen Bell) and 4500z (Extra Table). The Rank Trial needs 170 reputation on Day 5. With about 13 hunters a shift on Day 1 (rising with the day and the Canteen Bell), an average player passes on Day 5 and a sloppy one on Day 6–7. `tests/balance.test.ts` simulates 200 runs per player type and keeps these bands.
 
 ### 4.7 Kitchen staff
-- Astera starts with the **Oven Felyne** and the **Soup Felyne**. More generic kitchen Palicoes (unnamed, as in the Canteen cutscenes) join as the canteen expands.
+- From Day 5 the player can hire up to two unnamed **kitchen Palicoes** (2000z and 3000z, 150z a day each). One who can't be paid takes the day off; there is no debt. More join in later versions.
 - Roles: **Chef** (auto-runs a station), **Waiter** (auto-seats or auto-serves) and **Forager** (boosts Botanical Research or Grimalkyne trade yields).
 - Staff level up through work and can wear cosmetic Palico gear from *World*.
 
@@ -333,7 +342,7 @@ mh-restaurant/
   - Each roadmap milestone bumps **MINOR**.
   - Bug fixes on a released version bump **PATCH**.
   - **1.0.0** is the first complete release (M6).
-- **The current version is v0.3** (`0.3.0`).
+- **The current version is v0.4** (`0.4.0`).
 - The single source of truth is `version` in `package.json`. The build injects it (Vite `define`), and it shows on the title screen and in saves.
 - Each release gets a git tag `vX.Y.Z` on `main` and an entry in `CHANGELOG.md`. The GitHub Pages deployment always serves the latest commit on `main`.
 - This design document has its own document version in its header, separate from the game version.
@@ -341,20 +350,20 @@ mh-restaurant/
 ### 9.2 Version history
 | Version | Contents |
 |---|---|
+| **0.4.0** (Low Rank core, released) | The Soup Pot station (Fish and Veggie Platters from Day 3); up to two kitchen Palicoes who auto-cook a station; VIP regulars (Field Team Leader, the Huntsman, the Seeker, the Admiral); Jagras raids; the Rank Trial as a special shift; the Rush Hour before the Zorah Magdaros operation, ending Act I; Paolumu, Legiana, Odogaron, Rathalos and Diablos; save-schema v4. |
 | **0.3.0** (vertical slice, released) | The Handler's Day 1 tutorial (15 skippable tips, the shift pauses while she talks); Favorite Platter presets; the Ingredient Book with all 15 food skills; a Settings screen (sound, music, Large text, minigame assist, fullscreen, replay tutorial); a first pixel-art pass with Kenney's CC0 *Roguelike Indoors*; the Fruit Ninja style Chopping Board; weapon-free customers; balance from simulation (Rank Trial at 170 reputation, upgrades 1000–4500z); save-schema v3. |
 | **0.2.0** (canon pass, released) | Content is canon *World* throughout: Astera and the Meowscular Chef; the five canon dishes with platters set in morning prep; 26 Canteen ingredients and 15 food skills under *World's* rules; 8 Low Rank monsters; field-item returns; Provisions Manager deliveries; the Canteen level-up after "Flying Sparks: Tobi-Kadachi". Gameplay is low punishment with no game over. Presentation: 1920 × 1080 with a 60 FPS cap, no emoji, free icons, UI, sound and music, a Credits screen, the version on the title screen, and save-schema v2. |
 | **0.1.0** (prototype, released) | Playable greybox core loop: morning prep, service shift, three minigames (Chopping Board, BBQ Spit, Skewer Grill), quest report, upgrades, `localStorage` saves, GitHub Pages deploy. **Known gaps:** the content is placeholder and not yet canon (invented dishes, characters and village; Great Jaggi instead of Great Jagras), the resolution is 960 × 540, and there is no FPS cap or version display. |
 
-### 9.3 Next version: 0.4 (Low Rank complete)
-- The rest of Low Rank (§9.5 M4):
-  - the Soup Pot station and the Soup Felyne;
-  - kitchen staff (Oven Felyne, Soup Felyne, Waiter and Forager roles);
+### 9.3 Next version: 0.5 (Low Rank complete)
+- The rest of Low Rank (§9.5 M4b):
+  - the Astera hub screen with facility hotspots;
   - Botanical Research and Grimalkyne trades;
-  - Jagras raids and the Rush Hour event;
-  - hunting parties, VIP regulars and Grimalkyne visitors;
-  - more Low Rank monsters (Paolumu, Legiana, Odogaron, Rathalos, Diablos);
-  - the Low Rank Rank Trial as a special shift.
-- Something to spend Zenny on after the four Smithy upgrades (staff, decor).
+  - canteen layout and decor with passive bonuses (the main Zenny sink);
+  - daily food skills, Vouchers and Gourmet Vouchers;
+  - hunting parties and Grimalkyne visitors;
+  - Waiter and Forager staff roles;
+  - Poogie and light Act I story beats.
 
 ### 9.4 MVP / vertical slice
 - Astera only, Low Rank.
@@ -370,9 +379,10 @@ mh-restaurant/
 | M1–M2 | Prototype | **0.1** | Greybox core loop (done) |
 | M2.5 | Canon pass | **0.2** | Canon content, 1080p, 60 FPS cap, versioning (done) |
 | M3 | Vertical slice | **0.3** | MVP content (§9.4), first art pass, audio, Handler tutorial (done) |
-| M4 | Low Rank complete | 0.4 | Soup Pot, staff, Botanical Research, Grimalkyne trades, Jagras raids, LR Rank Trial |
-| M5a | High Rank | 0.5 | Oven / Oven Roast, Gathering Hub festivals, HR monsters |
-| M5b | Master Rank / Seliana | 0.6 | Seliana hub, Grammeowster Chef, drinks, stews and gratins, MR monsters |
+| M4a | Low Rank core | **0.4** | Soup Pot, kitchen Palicoes, VIPs, Jagras raids, Rush Hour, LR Rank Trial shift, the rest of the Act I monsters (done) |
+| M4b | Low Rank complete | 0.5 | Hub, Botanical Research, Grimalkyne trades, decor, daily skills, Vouchers, Poogie |
+| M5a | High Rank | 0.6 | Oven / Oven Roast, Gathering Hub festivals, HR monsters |
+| M5b | Master Rank / Seliana | 0.7 | Seliana hub, Grammeowster Chef, drinks, stews and gratins, MR monsters |
 | M6 | Polish & release | 1.0 | Balancing, accessibility, PWA offline install |
 
 ---
@@ -388,7 +398,8 @@ mh-restaurant/
 - ~~Point-and-click or a walking chef?~~ *Decided: point-and-click.*
 - ~~Ingredient slots per Canteen level?~~ *Decided: 2, then 4 after "Flying Sparks: Tobi-Kadachi" (monsterhunterwiki.org). The later levels (6?) still need checking.*
 - ~~Food skills in the quest simulation?~~ *Decided: every group skill has a one-line effect in `src/data/food-skills.ts`. With 2 or 4 slots, Low Rank reaches each group's first and second skills.*
-- ~~Balance: are 80 reputation by Day 5, and the current hunter arrival rate, the right pace?~~ *Decided in v0.3: 170 reputation by Day 5 with the current arrival rate, upgrades at 1000–4500z (§4.6). Re-check once staff and events land.*
+- ~~Balance: are 80 reputation by Day 5, and the current hunter arrival rate, the right pace?~~ *Decided in v0.3: 170 reputation by Day 5 with the current arrival rate, upgrades at 1000–4500z (§4.6). Re-checked in v0.4 with staff, VIPs and raids (§4.6).*
+- Zenny still piles up after Day 7 (around 4,000z a day for an average player). Decor in v0.5 is meant to absorb it; how much should it cost?
 - Art: the CC0 pixel props are top-down 3/4 view while characters are side view. Keep this mix, or move to a side-view pack or custom art for v1.0 (§7)?
 
 ---
@@ -441,6 +452,6 @@ Sources: [monsterhunterwiki.org: MHWI Canteen](https://monsterhunterwiki.org/wik
 **Daily skill pool** (three are drawn each cycle): Felyne Carver (Lo), Felyne Defender (Hi), Felyne Defender (Lo), Felyne Deflector, Felyne Escape Artist, Felyne Sprinter, Felynebacker, Felyne Weakener, Felyne Riser (Lo), Felyne Temper, Felyne Cliffhanger, Felyne Gripper, Felyne Lander, Felyne Bulldozer, Felyne Foodie, Felyne Dungmaster, Felyne Fur Coating, Felyne Trainer, Felyne Booster, Felyne Fisher, Cool Cat, Felyne Insurance, Felyne Provoker, Felyne Parting Gift, Felyne Researcher, Felyne Weathercat, Felyne Biologist, Felyne Macrozoologist, Felyne Microzoologist.
 
 ### A.4 Characters
-- **Astera:** Commander, the Handler, Field Team Leader, the Huntsman, Meowscular Chef, Second Fleet Master (Smithy), the Seeker, Admiral, Poogie, Provisions Manager, Tech Chief, Analytics Director (Resource Center), Smart Biologist, Lynian Researcher, Chief Ecologist (Ecological Research), Chief Botanist, Laid-back Botanist, Impatient Biologist (Botanical Research), the Captain (Argosy), Elder Melder, Fish Aficionado, Oven Felyne, Soup Felyne.
+- **Astera:** Commander, the Handler, Field Team Leader, the Huntsman, Meowscular Chef, Second Fleet Master (Smithy), the Seeker, Admiral, Poogie, Provisions Manager, Tech Chief, Analytics Director (Resource Center), Smart Biologist, Lynian Researcher, Chief Ecologist (Ecological Research), Chief Botanist, Laid-back Botanist, Impatient Biologist (Botanical Research), the Captain (Argosy), Elder Melder, Fish Aficionado. (The Canteen's kitchen Palicoes are unnamed.)
 - **Seliana:** the Handler, Field Team Leader, Grammeowster Chef, Second Fleet Master, the Seeker, the Tracker, Admiral, Serious Handler, Excitable A-Lister, Provisions Manager (Resource Center), Seliana Sailor (Botanical Research and Argosy).
 - **Background:** the Grammeowster Chef trained the Meowscular Chef for ten years, after the former First Fleet Palico's blade broke.

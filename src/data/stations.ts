@@ -4,9 +4,10 @@ export const STATIONS: Record<StationId, { name: string; icon: string; key: stri
   board: { name: 'Chopping Board', icon: 'board', key: '1' },
   spit: { name: 'BBQ Spit', icon: 'spit', key: '2' },
   grill: { name: 'Grill', icon: 'grill', key: '3' },
+  pot: { name: 'Soup Pot', icon: 'cauldron', key: '4' },
 };
 
-export const STATION_ORDER: StationId[] = ['board', 'spit', 'grill'];
+export const STATION_ORDER: StationId[] = ['board', 'spit', 'grill', 'pot'];
 
 export const NEED_LABELS: Record<NeedId | 'health', { name: string; icon: string; tint: number }> = {
   attack: { name: 'Attack Up', icon: 'attack', tint: 0xe0603a },

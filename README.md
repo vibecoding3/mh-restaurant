@@ -4,7 +4,7 @@
 
 You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster Hunter: World*. Research Commission hunters drop in before their quests and order canon Canteen meals. Cook them well and they head out with the right buffs and food skills, come back safe, and bring you gathered items. Every character, dish, ingredient, food skill and monster comes from *World*.
 
-> **Status:** v0.3.0, the vertical slice: a Handler tutorial, Favorite Platters, an Ingredient Book, a Settings screen and a first pixel-art pass. Code-drawn characters, free-licensed pixel art, icons, UI, sound and music (see [ASSETS_LICENSES.md](ASSETS_LICENSES.md)).
+> **Status:** v0.4.0, the Low Rank core: the Soup Pot, kitchen Palicoes, VIP regulars, Jagras raids, the Rank Trial shift and the Rush Hour that ends Act I. Code-drawn characters, free-licensed pixel art, icons, UI, sound and music (see [ASSETS_LICENSES.md](ASSETS_LICENSES.md)).
 >
 > **Play it in your browser: https://vibecoding3.github.io/mh-restaurant/**
 >
@@ -21,11 +21,15 @@ You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster
    - **Menu:** choose which dishes are on today's menu, including the Chef's Choice Platter and the Well-Done Steak.
    - **Delivery requests:** hand items to the Provisions Manager to unlock new ingredients.
    - **Smithy upgrades:** buy canteen improvements from the Second Fleet Master's team.
+   - **Kitchen** (from Day 5): hire up to two kitchen Palicoes and put each on a station; they cook its orders by themselves.
    - **Book:** the Ingredient Book lists every ingredient, where to get it, and all 15 food skills.
-2. **Service shift (about 2 min).** Click a hunter at the door to seat them. The icon over their head shows what they need for their quest. Their order appears as a ticket on the rail. Click the glowing station (or press `1` `2` `3`) to cook:
+2. **Service shift (about 2 min).** Click a hunter at the door to seat them. The icon over their head shows what they need for their quest. Their order appears as a ticket on the rail. Click the glowing station (or press `1` `2` `3` `4`) to cook:
    - **Chopping Board:** the ingredients are tossed up over the board. Hold the mouse button and slash through them before they fall, Fruit Ninja style.
    - **BBQ Spit:** hold the mouse button or `Space` to spin the Raw Meat, and release in the gold for a Well-Done Steak.
    - **Grill:** flip each cut when it turns golden, twice. `Space` flips the hottest one.
+   - **Soup Pot** (from Day 3, for Fish and Veggie Platters): hold the fire or `Space` to keep the heat in the green, and click the pot to add ingredients on cue.
+
+   VIP regulars from Astera drop by from Day 4 and pay double. From Day 3, Jagras may sneak in after your stock: click them to shoo them away.
 
    When the ticket says READY, click it (or the hunter) to serve. A dish that gives what the hunter needs earns a bigger tip. `Esc` pauses the game.
 3. **Quest report.** The Handler shows whether each hunter succeeded, barely made it or got carted.
@@ -33,7 +37,7 @@ You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster
    - Carted hunters come back the next day.
    - Completing "Flying Sparks: Tobi-Kadachi" levels up the Canteen to 4 ingredients per platter.
 
-Goal: reach 170 reputation by Day 5 to pass the Commander's Rank Trial. There is no game over. A missed trial can be retried the next day.
+Goal: reach 170 reputation by Day 5 to unlock the Commander's Rank Trial, a special shift: serve 8 hunters at Rare or better, 3 of them with what they need. Two days after you pass, the Rush Hour before the Zorah Magdaros operation completes Act I. There is no game over. A missed trial can be retried the next day.
 
 On a new game the Handler explains each step the first time it comes up; "Skip tutorial" turns her tips off. **Settings** (title screen or pause menu) has sound, music volume, Large text, a minigame assist with wider timing windows, fullscreen (`F` anywhere) and "Replay tutorial".
 
@@ -44,8 +48,7 @@ Debug: `?shift=20` shortens a shift to 20 seconds, and `?debug` exposes the game
 Following the [GDD](docs/GDD.md), the Low Rank is polished first, then High Rank and Master Rank.
 
 - **More Low Rank:**
-  - the Soup Pot station;
-  - kitchen Palicoes who auto-run stations;
+  - the Astera hub and decor;
   - Botanical Research and Grimalkyne trades for ingredients;
   - Jagras raids and rush hours.
 - **High Rank:**

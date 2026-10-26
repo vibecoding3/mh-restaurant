@@ -1,18 +1,20 @@
 import Phaser from 'phaser';
-import type { Category, DishId, PlatterId } from '../core/types';
+import type { Category, DishId, PlatterId, StationId } from '../core/types';
 import {
-  buyIngredient, buyUpgrade, completeDelivery, dishIngredients, loadFavorite, portions, saveFavorite, sellItem,
+  POT_DAY, buyIngredient, buyUpgrade, completeDelivery, dishIngredients, potOpen, loadFavorite, portions, saveFavorite, sellItem,
   togglePlatterIngredient,
 } from '../core/economy';
 import { platterBuffs, slotsFor } from '../core/platters';
-import { TRIAL_DAY, TRIAL_REPUTATION, hasUpgrade, isTrialDay } from '../core/state';
+import { TRIAL_DAY, TRIAL_GOAL, TRIAL_REPUTATION, hasUpgrade, isTrialDay } from '../core/state';
+import { LEVEL_UP_DISHES, WAGE, assignStaff, hireCost, hireStaff, staffLevel } from '../core/staff';
 import { saveGame } from '../core/save';
 import { CAST, HANDLER_TIPS } from '../data/cast';
+import { ZORAH_QUEST } from '../data/monsters';
 import { DELIVERY_LIST } from '../data/deliveries';
 import { DISHES, PLATTER_IDS } from '../data/dishes';
 import { FOOD_SKILLS } from '../data/food-skills';
 import { CATEGORY_LABELS, GROUP_LABELS, INGREDIENTS, INGREDIENT_LIST } from '../data/ingredients';
-import { NEED_LABELS, TIER_LABELS } from '../data/stations';
+import { NEED_LABELS, STATIONS, STATION_ORDER, TIER_LABELS } from '../data/stations';
 import { UPGRADE_LIST } from '../data/upgrades';
 import { session } from '../session';
 import {
@@ -24,10 +26,16 @@ import { HandlerTips } from '../ui/tutorial';
 
 const TABS: Category[] = ['meat', 'fish', 'veg', 'field'];
 const FRESH_TINT = 0x7ac0e8;
+type RightTab = 'smithy' | 'kitchen' | 'deliveries';
+const RIGHT_TABS: { id: RightTab; label: string }[] = [
+  { id: 'smithy', label: 'Smithy' }, { id: 'kitchen', label: 'Kitchen' }, { id: 'deliveries', label: 'Deliveries' },
+];
+const RX = 1324;
 
 export class PrepScene extends Phaser.Scene {
   private layer!: Phaser.GameObjects.Container;
   private tab: Category = 'meat';
+  private rightTab: RightTab = 'smithy';
   private tips!: HandlerTips;
 
   constructor() {
@@ -41,6 +49,10 @@ export class PrepScene extends Phaser.Scene {
     this.render();
     this.tips = new HandlerTips(this, () => session.state, { onSeen: () => saveGame(session.state) });
     for (const id of ['prep-argosy', 'prep-platter', 'prep-fresh', 'prep-menu', 'prep-open']) this.tips.show(id);
+    const s = session.state;
+    const cost = hireCost(s);
+    if (cost !== null && s.zenny >= cost) this.tips.show('prep-kitchen');
+    if (isTrialDay(s)) this.tips.show('prep-trial');
   }
 
   private toast(msg: string): void {
@@ -64,17 +76,19 @@ export class PrepScene extends Phaser.Scene {
     this.put(title(this, 30, 18, `Day ${s.day}: Morning Prep`, 44, CREAM));
     this.put(iconText(this, 1300, 44, 'coin', `${s.zenny}z`, 34, CREAM, 0xf2c94c));
     this.put(iconText(this, 1480, 44, 'star', `${s.reputation}`, 34, CREAM, 0xf2c94c));
-    const trial = s.trialPassed
-      ? 'Rank Trial passed: Low Rank canteen approved!'
-      : isTrialDay(s)
-        ? `Rank Trial today: reach ${TRIAL_REPUTATION} reputation`
-        : `Rank Trial on Day ${TRIAL_DAY}: ${TRIAL_REPUTATION} reputation`;
-    this.put(txt(this, 1890, 44, trial, 24, GOLD, { fontStyle: 'bold', align: 'right', wordWrap: { width: 340 } }).setOrigin(1, 0.5));
+    // Short: it shares the top bar with the Zenny and reputation counters.
+    let trial: string;
+    if (s.actOneDone) trial = 'Low Rank complete!';
+    else if (s.rushDay === s.day) trial = 'Rush Hour today!';
+    else if (s.trialPassed) trial = 'Rank Trial passed!';
+    else if (isTrialDay(s)) trial = 'Rank Trial today!';
+    else if (s.day < TRIAL_DAY) trial = `Rank Trial: Day ${TRIAL_DAY}, ${TRIAL_REPUTATION} rep`;
+    else trial = `Rank Trial: ${TRIAL_REPUTATION - s.reputation} rep to go`;
+    this.put(fitWidth(txt(this, 1890, 44, trial, 26, GOLD, { fontStyle: 'bold' }).setOrigin(1, 0.5), 290));
 
     this.drawArgosy();
     this.drawPlatters();
-    this.drawSmithy();
-    this.drawDeliveries();
+    this.drawRightColumn();
     this.drawHandler();
 
     // Footer
@@ -299,14 +313,27 @@ export class PrepScene extends Phaser.Scene {
 
   // ------------------------------------------------------------- Smithy, deliveries, Handler
 
+  private drawRightColumn(): void {
+    this.put(panel(this, RX, 90, 572, 680, 'paper'));
+    RIGHT_TABS.forEach((t, i) => {
+      this.put(new Button(this, RX + 98 + i * 188, 132, 180, 54, t.label, () => {
+        sfx.click();
+        this.rightTab = t.id;
+        this.render();
+      }, { style: this.rightTab === t.id ? 'wood' : 'paper', size: 26 }));
+    });
+    if (this.rightTab === 'smithy') this.drawSmithy();
+    else if (this.rightTab === 'kitchen') this.drawKitchen();
+    else this.drawDeliveries();
+  }
+
   private drawSmithy(): void {
     const s = session.state;
-    const X = 1324;
-    this.put(panel(this, X, 90, 572, 380, 'paper'));
-    this.put(iconText(this, X + 24, 132, 'anvil', 'Smithy Upgrades', 34, INK, 0x6b4a30));
-    this.put(txt(this, X + 24, 162, `Built by the ${CAST.smithy}'s team.`, 22, INK_SOFT));
+    const X = RX;
+    this.put(iconText(this, X + 24, 196, 'anvil', 'Smithy Upgrades', 30, INK, 0x6b4a30));
+    this.put(txt(this, X + 24, 226, `Built by the ${CAST.smithy}'s team.`, 22, INK_SOFT));
     UPGRADE_LIST.forEach((u, i) => {
-      const y = 226 + i * 62;
+      const y = 296 + i * 74;
       const owned = hasUpgrade(s, u.id);
       this.put(icon(this, X + 46, y, u.icon, 44, 0x8a5a2a));
       this.put(txt(this, X + 80, y - 14, u.name, 25, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
@@ -323,12 +350,11 @@ export class PrepScene extends Phaser.Scene {
 
   private drawDeliveries(): void {
     const s = session.state;
-    const X = 1324;
-    this.put(panel(this, X, 482, 572, 290, 'paper'));
-    this.put(iconText(this, X + 24, 524, 'scroll', 'Delivery Requests', 34, INK, 0x6b4a30));
-    this.put(fitWidth(txt(this, X + 24, 552, `The ${CAST.provisions} unlocks new ingredients.`, 20, INK_SOFT), 524));
+    const X = RX;
+    this.put(iconText(this, X + 24, 196, 'scroll', 'Delivery Requests', 30, INK, 0x6b4a30));
+    this.put(fitWidth(txt(this, X + 24, 226, `The ${CAST.provisions} unlocks new ingredients.`, 22, INK_SOFT), 524));
     DELIVERY_LIST.forEach((d, i) => {
-      const y = 604 + i * 58;
+      const y = 300 + i * 80;
       const item = INGREDIENTS[d.item];
       const done = s.deliveries.includes(d.id);
       const have = s.stock[d.item] ?? 0;
@@ -346,12 +372,72 @@ export class PrepScene extends Phaser.Scene {
     });
   }
 
+  /** Kitchen Palicoes: hire them, then put each on a station. */
+  private drawKitchen(): void {
+    const s = session.state;
+    const X = RX;
+    this.put(iconText(this, X + 24, 196, 'palico', 'Kitchen Palicoes', 30, INK, 0x6b4a30));
+    this.put(txt(this, X + 24, 236, `They cook their station's orders by themselves: Rare at first, Well-done after ${LEVEL_UP_DISHES} dishes. `
+      + `Wage: ${WAGE}z each morning.`, 20, INK_SOFT, { wordWrap: { width: 524 } }).setOrigin(0, 0.5));
+    for (let i = 0; i < 2; i++) {
+      const y = 290 + i * 230;
+      this.put(panel(this, X + 16, y, 540, 214, 'inset'));
+      const p = s.staff[i];
+      if (!p) {
+        const cost = hireCost(s);
+        const next = i === s.staff.length;
+        this.put(icon(this, X + 64, y + 60, 'palico', 56, next ? 0x8a5a2a : 0xb8a888));
+        this.put(txt(this, X + 104, y + 60, next ? 'Hire a kitchen Palico' : 'Hire the first Palico first', 26, next ? INK : INK_SOFT,
+          { fontStyle: 'bold' }).setOrigin(0, 0.5));
+        if (next && cost !== null) {
+          const b = this.put(new Button(this, X + 280, y + 140, 260, 60, `Hire for ${cost}z`, () => {
+            if (hireStaff(s)) {
+              sfx.coin();
+              this.refresh();
+            }
+          }, { size: 26, icon: 'coin' }));
+          b.setEnabled(s.zenny >= cost);
+        }
+        continue;
+      }
+      const level = staffLevel(p);
+      this.put(icon(this, X + 64, y + 46, 'palico', 56, 0x8a5a2a));
+      this.put(txt(this, X + 104, y + 34, `Kitchen Palico ${i + 1}`, 26, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
+      const status = p.off
+        ? 'Day off today: there was no Zenny for the wage.'
+        : level >= 2 ? `Level 2: cooks Well-done (${p.cooked} dishes)` : `Level 1: cooks Rare (${p.cooked}/${LEVEL_UP_DISHES} dishes)`;
+      this.put(txt(this, X + 104, y + 66, status, 20, p.off ? '#b03a2e' : INK_SOFT).setOrigin(0, 0.5));
+      this.put(txt(this, X + 40, y + 112, 'Station:', 22, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
+      const options: (StationId | null)[] = [null, ...STATION_ORDER];
+      options.forEach((st, j) => {
+        const on = p.station === st;
+        const label = st ? STATIONS[st].name.replace('Chopping ', '').replace('BBQ ', '').replace('Soup ', '') : 'None';
+        const b = this.put(new Button(this, X + 76 + j * 104, y + 166, 98, 52, label, () => {
+          sfx.click();
+          assignStaff(s, p.id, st);
+          this.refresh();
+        }, { style: on ? 'go' : 'paper', size: 20 }));
+        if (st === 'pot' && !potOpen(s)) b.setEnabled(false);
+      });
+    }
+    if (!potOpen(s)) this.put(txt(this, X + 24, 752, `The Soup Pot opens on Day ${POT_DAY}.`, 19, INK_SOFT).setOrigin(0, 0.5));
+  }
+
   private drawHandler(): void {
     const s = session.state;
-    const X = 1324;
+    const X = RX;
     this.put(panel(this, X, 784, 572, 206, 'light'));
     this.put(iconText(this, X + 24, 820, 'paw', "The Handler's tip", 28, INK, 0x8a5a2a));
-    this.put(txt(this, X + 24, 846, HANDLER_TIPS[(s.day - 1) % HANDLER_TIPS.length], 22, '#4a3020', {
+    let tip = HANDLER_TIPS[(s.day - 1) % HANDLER_TIPS.length];
+    if (isTrialDay(s)) {
+      tip = `Rank Trial today! The Commander wants ${TRIAL_GOAL.served} hunters served at Rare or better, `
+        + `and at least ${TRIAL_GOAL.needsMet} of them given what they need.`;
+    } else if (s.rushDay === s.day && !s.actOneDone) {
+      tip = `Rush Hour today! Every hunter wants a meal before "${ZORAH_QUEST}", the operation against Zorah Magdaros.`;
+    } else if (s.rushDay === s.day + 1) {
+      tip = 'The Commission sets out for Zorah Magdaros soon. Stock up: tomorrow is going to be busy!';
+    }
+    this.put(txt(this, X + 24, 846, tip, 22, '#4a3020', {
       wordWrap: { width: 524 }, lineSpacing: 2,
     }));
   }

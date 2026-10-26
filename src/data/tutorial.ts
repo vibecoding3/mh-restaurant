@@ -1,4 +1,5 @@
-import { TRIAL_DAY, TRIAL_REPUTATION } from '../core/state';
+import { TRIAL_DAY, TRIAL_GOAL, TRIAL_REPUTATION } from '../core/state';
+import { HIRE_COSTS, WAGE } from '../core/staff';
 
 // The Handler's Day 1 tutorial. Each tip is shown once, the first time its moment comes up.
 
@@ -42,7 +43,15 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'prep-open', scene: 'Prep', target: { x: 1430, y: 996, w: 460, h: 88 },
-    text: `When you're ready, open the Canteen! Reach ${TRIAL_REPUTATION} reputation by Day ${TRIAL_DAY} to pass the Commander's Rank Trial.`,
+    text: `When you're ready, open the Canteen! Reach ${TRIAL_REPUTATION} reputation by Day ${TRIAL_DAY} and the Commander will hold your Rank Trial.`,
+  },
+  {
+    id: 'prep-kitchen', scene: 'Prep', target: { x: 1324, y: 90, w: 572, h: 680 },
+    text: `You can afford a kitchen Palico now (${HIRE_COSTS[0]}z, then ${WAGE}z a day). Put one on a station in the Kitchen tab and they'll cook its orders by themselves.`,
+  },
+  {
+    id: 'prep-trial', scene: 'Prep', target: { x: 1324, y: 784, w: 572, h: 206 },
+    text: `Today's shift is the Commander's Rank Trial! Serve ${TRIAL_GOAL.served} hunters at Rare or better, and give at least ${TRIAL_GOAL.needsMet} of them what they need. If it doesn't work out, you can try again tomorrow.`,
   },
 
   // Service
@@ -71,6 +80,18 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     text: 'The Grill: click each cut when it turns golden to flip it. Every cut needs both sides done. Space flips the hottest one.',
   },
   {
+    id: 'svc-pot', scene: 'Service', target: MINIGAME,
+    text: "The Soup Pot: hold the fire button (or Space) to stoke it and keep the heat in the green. When I call for it, click the pot to add an ingredient!",
+  },
+  {
+    id: 'svc-vip', scene: 'Service', target: { x: 30, y: 380, w: 440, h: 300 },
+    text: 'A VIP from Astera has dropped by! They pay double, and a Well-done meal that gives what they need earns extra reputation.',
+  },
+  {
+    id: 'svc-raid', scene: 'Service', target: { x: 0, y: 380, w: 1920, h: 330 },
+    text: "Jagras are sneaking in after your ingredients! Click each one to shoo it away before it reaches the counter.",
+  },
+  {
     id: 'svc-serve', scene: 'Service',
     text: 'That dish is ready! Click the ticket or the hunter to serve it before their hearts run out.',
   },
@@ -86,7 +107,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'rep-trial', scene: 'Report', target: { x: 30, y: 856, w: 1200, h: 200 },
-    text: `Good meals and successful hunts earn reputation. Reach ${TRIAL_REPUTATION} by Day ${TRIAL_DAY} and the Commander approves your Canteen in the Rank Trial.`,
+    text: `Good meals and successful hunts earn reputation. Reach ${TRIAL_REPUTATION} by Day ${TRIAL_DAY} and the Commander will test your Canteen in a Rank Trial shift.`,
   },
 ];
 

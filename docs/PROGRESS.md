@@ -2,11 +2,11 @@
 
 > **As of:** 2026-10-26
 >
-> **Current version:** v0.3.0 (vertical slice), released.
+> **Current version:** v0.4.0 (Low Rank core), released.
 >
 > **Play it:** https://vibecoding3.github.io/mh-restaurant/
 >
-> **Next milestone:** v0.4, the rest of Low Rank (GDD §9.3, §9.5 M4).
+> **Next milestone:** v0.5, the rest of Low Rank (GDD §9.3, §9.5 M4b).
 
 This document summarizes what works in the game today and what the [Game Design Document](GDD.md) still plans. Section numbers (§) refer to the GDD.
 
@@ -16,10 +16,10 @@ This document summarizes what works in the game today and what the [Game Design 
 |---|---|
 | Core daily loop (prep, service, quest report) | Done |
 | Canon *World* content (Low Rank, Astera) | Mostly done |
-| Cooking stations | 3 of 4 Low Rank stations |
+| Cooking stations | All 4 Low Rank stations |
 | Canteen rules (platters, buffs, food skills, fresh ingredients) | Done for 2 and 4 slots |
 | Economy and progression | Basic version done |
-| Kitchen staff, hub facilities, events, VIPs | Not started |
+| Kitchen staff, hub facilities, events, VIPs | Kitchen Palicoes, VIPs, Jagras raids and Rush Hour done; hub facilities not started |
 | High Rank, Master Rank and Seliana | Not started |
 | Art and audio | First pixel-art pass on the dining hall and stations; free UI, sounds and music |
 | Release work (PWA, settings, accessibility) | Settings done (text size, assist, fullscreen); PWA not started |
@@ -62,7 +62,9 @@ This document summarizes what works in the game today and what the [Game Design 
 ### Content
 - **Ingredients:** 26 canon Canteen ingredients across all five skill groups. 15 are available from Day 1, 9 more unlock through three Provisions Manager deliveries, and the 2 eggs come back with hunters.
 - **Field items** that hunters bring back: Raw Meat, Herb, Blue Mushroom, Sushifish, Whetfish, Herbivore Egg and Wyvern Egg. Never monster parts.
-- **Monsters:** 8 Low Rank quest targets with *World* star ratings, unlocking over the days: Great Jagras, Kulu-Ya-Ku, Pukei-Pukei, Barroth, Jyuratodus, Tobi-Kadachi, Anjanath and Rathian.
+- **Monsters:** 13 Low Rank quest targets with *World* star ratings, unlocking over the days: Great Jagras, Kulu-Ya-Ku, Pukei-Pukei, Barroth, Jyuratodus, Tobi-Kadachi, Anjanath, Rathian, Paolumu, Legiana, Odogaron, Rathalos and Diablos, across the Ancient Forest, Wildspire Waste, Coral Highlands and Rotten Vale.
+- **VIP regulars** (from Day 4): Field Team Leader, the Huntsman, the Seeker and the Admiral. They pay double and give bonus reputation for a Well-done meal that meets their need.
+- **Events:** Jagras raids (shoo them before they eat the stock) and the Rush Hour before "One for the History Books", which completes Act I.
 - **Customers:**
   - Unnamed Research Commission hunters, as rookies or veterans.
   - They wear 13 Low Rank armor sets and use the 14 *World* weapon types.
@@ -74,6 +76,8 @@ This document summarizes what works in the game today and what the [Game Design 
 - **Chopping Board:** ingredients are tossed into the air. Slash through them with the mouse before they fall (Fruit Ninja style).
 - **BBQ Spit:** hold to spin the meat and release in the gold. The results are Burnt Meat, Rare Steak or Well-Done Steak.
 - **Grill:** flip each cut when it turns golden, twice.
+- **Soup Pot** (from Day 3, for Fish and Veggie Platters): hold the fire to keep the heat in the green, and click the pot to add ingredients on cue.
+- **Kitchen Palicoes** (from Day 5, up to two): assigned to a station in morning prep, they cook its orders by themselves, Rare at first and Well-done after 25 dishes, for 150z a day.
 
 ### Rules and difficulty
 - **Low punishment, no game over:**
@@ -81,7 +85,7 @@ This document summarizes what works in the game today and what the [Game Design 
   - A burnt dish still pays 70%.
   - Reputation never drops below 0.
   - A carted hunter costs nothing and comes back the next day.
-- **Rank Trial:** the Commander checks for 170 reputation on Day 5. If you miss it, the trial repeats each day until passed, then play continues.
+- **Rank Trial:** a special shift, open from Day 5 at 170 reputation. The Commander wants 8 hunters served at Rare or better, 3 of them with their need met. A failed trial repeats the next day.
 - **Balance** is checked by `tests/balance.test.ts`: 200 seeded runs of Days 1–7 for a good, an average and a sloppy player. An average player passes the trial on Day 5 and buys a Smithy upgrade every one or two days.
 
 ### Presentation and tech
@@ -94,9 +98,9 @@ This document summarizes what works in the game today and what the [Game Design 
   - **Music:** four CC0 tracks chosen to feel like *World*.
   - **Fonts:** Cinzel and Alegreya Sans.
 - **Screens:** loading screen, title (with the version number), Credits, Settings (sound, music, text size, minigame assist, fullscreen, replay tutorial) and the Ingredient Book. Settings are remembered.
-- **Saves:** schema v3. Saves from an older version are wiped, with a notice on the title screen.
+- **Saves:** schema v4. Saves from an older version are wiped, with a notice on the title screen.
 - **Development:**
-  - 41 unit tests for the game logic, including the balance simulation;
+  - 55 unit tests for the game logic, including a 10-day balance simulation;
   - a GitHub Actions deploy to GitHub Pages on every push to `main`;
   - `?shift=` and `?debug` URL flags for playtests.
 
@@ -113,35 +117,38 @@ Detailed plan: [PLAN-v0.3.md](PLAN-v0.3.md).
 - [x] Settings screen: text size, minigame assist (wider timing windows) and fullscreen
 - [x] Tag a release (v0.3.0) for the changes made since v0.2.0
 
-### Next: rest of Low Rank, v0.4 (§9.5 M4)
-Detailed plan: [PLAN-v0.4.md](PLAN-v0.4.md). v0.4 covers the Soup Pot, kitchen Palicoes, more monsters, VIPs, Jagras raids, Rush Hour and the Rank Trial shift; the rest of this list moves to v0.5.
+### Done in v0.4, Low Rank core (§9.5 M4a)
+Detailed plan: [PLAN-v0.4.md](PLAN-v0.4.md).
 
-- [ ] **Soup Pot** station (Soup Felyne): keep the heat in the green zone and add ingredients on cue (§4.2)
-- [ ] **Kitchen staff:** the Oven Felyne and Soup Felyne auto-run stations; Waiter and Forager roles; staff level-ups (§4.7)
+- [x] **Soup Pot** station: keep the heat in the green zone and add ingredients on cue (§4.2)
+- [x] **Kitchen Palicoes** who auto-run a station, with a level-up (§4.7)
+- [x] **Events:** Jagras raids; Rush Hour before the Zorah Magdaros operation (§4.9)
+- [x] **VIP regulars:** Field Team Leader, the Huntsman, the Seeker, the Admiral (§4.1)
+- [x] **More Low Rank monsters:** Paolumu, Legiana, Odogaron, Rathalos and Diablos (§4.10)
+- [x] **The Rank Trial** as a special shift (§4.10)
+
+### Next: rest of Low Rank, v0.5 (§9.5 M4b)
+- [ ] **Kitchen staff roles:** Waiter and Forager (§4.7)
 - [ ] **Botanical Research** (Chief Botanist): grows vegetables over 1–3 days (§4.5)
 - [ ] **Grimalkyne trades** (Lynian Researcher): Lynian items for rare ingredients (§4.5)
-- [ ] **Events** (§4.9):
-  - [ ] Jagras raids
-  - [ ] Rush Hour before the Zorah Magdaros operation
 - [ ] **Customer types** (§4.1):
   - [ ] hunting parties served together
-  - [ ] VIP regulars from the cast (Field Team Leader, Huntsman, Seeker, Admiral, the Fifth Fleet's Hunter)
+  - [ ] the Fifth Fleet's Hunter as the star VIP
   - [ ] Grimalkyne visitors who pay in trade items
-- [ ] **More Low Rank monsters:** Paolumu, Legiana, Odogaron, Rathalos and Diablos (§4.10)
 - [ ] **Daily food skills** (from *World's* daily pool) and **Vouchers / Gourmet Vouchers** (§4.3)
 - [ ] **Light story beats** for Act I with the Handler and the Commander (§2.4)
 - [ ] **Poogie** as the canteen mascot (§2.3)
 - [ ] **Canteen layout and decor** placed on a grid, with passive bonuses (§4.8)
 - [ ] **Astera hub screen** with facility hotspots (§6)
 
-### High Rank: v0.5 (§9.5 M5a)
+### High Rank: v0.6 (§9.5 M5a)
 - [ ] Oven station and Oven Roast (turns surplus into Rations, Nutrients and Lifepowder)
 - [ ] Gathering Hub festivals and the Grand Appreciation Platter
 - [ ] High Rank monsters: Kirin, Uragaan, Lavasioth, Bazelgeuse and the Elder Dragons
 - [ ] Canteen level 3 after "Tickled Pink" (6 ingredient slots; the exact count still needs checking in-game)
 - [ ] High Rank Rank Trial and Act II framing
 
-### Master Rank and Seliana: v0.6 (§9.5 M5b)
+### Master Rank and Seliana: v0.7 (§9.5 M5b)
 - [ ] Seliana hub, run by the Grammeowster Chef
 - [ ] Drinks Keg station, plus drinks and drink skills (Perception, Fortune, Preparation, Trailblazer)
 - [ ] Stew Cauldron and Gratin Oven stations
@@ -157,7 +164,7 @@ Detailed plan: [PLAN-v0.4.md](PLAN-v0.4.md). v0.4 covers the Soup Pot, kitchen P
 - [ ] Save migrations instead of wiping, once Low Rank is released
 
 ## Known issues and open questions
-- **Balance:** once all four upgrades are bought (around Day 6), Zenny piles up with nothing to spend it on. Staff, decor and Botanical Research in v0.4 should give it a use. The simulation assumes about 13 hunters a shift on Day 1; a bot that cooks perfectly serves all of them.
+- **Balance:** kitchen Palicoes are only a partial Zenny sink. After Day 7 an average player still saves about 4,000z a day; decor in v0.5 should absorb it. A sloppy player (one who rarely gives hunters what they need) passes the Rank Trial shift by Day 10 in about three runs out of four.
 - **Art:** the pixel-art props are drawn in a top-down 3/4 view, while the characters are side-view. The pack has no wooden floor or wall tiles, so those stay code-drawn ship timber, and no spit, so the BBQ Spit stays code-drawn.
 - **Food skills:** Felyne Moxie and Felyne Heroics need 6 ingredients of one group, so they can't appear in Low Rank (2 or 4 slots).
 - **Weapons:** customers no longer show weapons, but each hunter still has a weapon type. It appears on report cards and affects some food skills (for example Felyne Sharpshooter for bowguns and the Bow). Whether to keep it is undecided.

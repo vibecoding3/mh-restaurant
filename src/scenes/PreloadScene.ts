@@ -5,7 +5,7 @@ import { MUSIC, initMusic } from '../ui/music';
 import { PIXEL_FILE, PIXEL_SHEET, TILE } from '../ui/pixel';
 
 export const ICON_KEYS = [
-  'angry', 'anvil', 'attack', 'bean', 'bell', 'board', 'book', 'cart', 'celery', 'check', 'chef', 'chicken', 'clock', 'cog', 'coin',
+  'angry', 'anvil', 'attack', 'bean', 'bell', 'board', 'book', 'cart', 'cauldron', 'celery', 'check', 'chef', 'chicken', 'clock', 'cog', 'coin',
   'corn', 'defense', 'drumstick', 'eat', 'egg', 'elemRes', 'fish', 'flatfish', 'fresh', 'grill', 'herb', 'lantern',
   'liver', 'meat', 'mushroom', 'mute', 'octopus', 'onion', 'palico', 'pause', 'paw', 'platter', 'play', 'potato',
   'pumpkin', 'rawmeat', 'save', 'scroll', 'shell', 'ship', 'shrimp', 'sick', 'sound', 'spit', 'stamina', 'steak',

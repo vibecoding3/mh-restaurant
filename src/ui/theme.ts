@@ -37,8 +37,8 @@ export function txt(
   return scene.add.text(x, y, s, { fontFamily: FONT, fontSize: `${px}px`, color, ...style });
 }
 
-/** Shrinks a text to fit `max` pixels wide, e.g. with Large text on a ticket. */
-export function fitWidth<T extends Phaser.GameObjects.Text>(t: T, max: number): T {
+/** Shrinks a text (or an icon and text) to fit `max` pixels wide, e.g. with Large text on a ticket. */
+export function fitWidth<T extends Phaser.GameObjects.Text | Phaser.GameObjects.Container>(t: T, max: number): T {
   if (t.width > max) t.setScale(max / t.width);
   return t;
 }
@@ -254,8 +254,11 @@ export function drawHunter(scene: Phaser.Scene, armor: ArmorSet, veteran: boolea
   return c;
 }
 
-/** Draws the Meowscular Chef: muscular Palico in a tall chef's hat and scarf, holding a cleaver. */
-export function drawPalico(scene: Phaser.Scene, x: number, y: number): Phaser.GameObjects.Container {
+/**
+ * Draws the Meowscular Chef: muscular Palico in a tall chef's hat and scarf, holding a cleaver.
+ * Without the hat it is one of his unnamed kitchen Palicoes.
+ */
+export function drawPalico(scene: Phaser.Scene, x: number, y: number, chef = true): Phaser.GameObjects.Container {
   const c = scene.add.container(x, y);
   const g = scene.add.graphics();
   const fur = 0xe8e0d4;
@@ -282,8 +285,10 @@ export function drawPalico(scene: Phaser.Scene, x: number, y: number): Phaser.Ga
   g.fillStyle(fur, 1).fillTriangle(-34, -136, -30, -176, -8, -160).fillTriangle(34, -136, 30, -176, 8, -160);
   g.fillStyle(0xe8a0a0, 1).fillTriangle(-28, -142, -27, -166, -14, -156).fillTriangle(28, -142, 27, -166, 14, -156);
   // tall chef's hat
-  g.fillStyle(0xffffff, 1).fillRoundedRect(-30, -232, 60, 66, 18).fillCircle(-20, -228, 18).fillCircle(20, -228, 18).fillCircle(0, -238, 20);
-  g.fillStyle(0xe8e4dc, 1).fillRect(-30, -172, 60, 12);
+  if (chef) {
+    g.fillStyle(0xffffff, 1).fillRoundedRect(-30, -232, 60, 66, 18).fillCircle(-20, -228, 18).fillCircle(20, -228, 18).fillCircle(0, -238, 20);
+    g.fillStyle(0xe8e4dc, 1).fillRect(-30, -172, 60, 12);
+  }
   // face and whiskers
   g.fillStyle(0x2a1a0e, 1).fillCircle(-12, -130, 4.5).fillCircle(12, -130, 4.5);
   g.lineStyle(3, 0x2a1a0e, 1).lineBetween(-20, -140, -6, -137).lineBetween(20, -140, 6, -137);

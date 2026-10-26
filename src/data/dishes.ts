@@ -8,11 +8,11 @@ export const DISH_LIST: Dish[] = [
   },
   {
     id: 'fishPlatter', name: 'Fish Platter', icon: 'platter', tint: 0x5a8ac0, category: 'fish',
-    stations: ['board', 'grill'], price: 150, description: 'Fish ingredients: Defense Up.',
+    stations: ['board', 'pot'], price: 150, description: 'Fish ingredients: Defense Up.',
   },
   {
     id: 'veggiePlatter', name: 'Veggie Platter', icon: 'platter', tint: 0x6aa04a, category: 'veg',
-    stations: ['board', 'grill'], price: 150, description: 'Vegetables: Elemental Res Up.',
+    stations: ['board', 'pot'], price: 150, description: 'Vegetables: Elemental Res Up.',
   },
   {
     id: 'chefsChoice', name: "Chef's Choice Platter", icon: 'chef', tint: 0xf2e6c8,

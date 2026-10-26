@@ -1,21 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { combineQuality, gradeChop, gradeGrill, gradeSpit, spitWindow } from '../src/core/cooking';
+import { combineQuality, gradeChop, gradeGrill, gradePot, gradeSpit, potBand, spitWindow } from '../src/core/cooking';
 import {
   buyIngredient, buyUpgrade, chooseOrder, completeDelivery, consumeIngredients, dishIngredients, dishPayment,
-  loadFavorite, meetsNeed, pickChefsChoice, portions, rollFresh, rollPrices, saveFavorite, sellItem, togglePlatterIngredient,
+  loadFavorite, meetsNeed, potOpen, raidSteal, stationsFor, vipMonster, vipPayment, pickChefsChoice, portions, rollFresh, rollPrices, saveFavorite, sellItem, togglePlatterIngredient,
 } from '../src/core/economy';
-import { arrivalInterval } from '../src/core/shift';
+import { RUSH, arrivalInterval, raidAt, vipAt } from '../src/core/shift';
+import { HIRE_COSTS, LEVEL_UP_DISHES, STAFF_DAY, WAGE, assignStaff, hireStaff, payWages, staffQuality, stationStaff } from '../src/core/staff';
 import { DEFAULT_SETTINGS, OLD_AUDIO_KEY, SETTINGS_KEY, readSettings } from '../src/ui/settings';
 import { TUTORIAL_STEPS } from '../src/data/tutorial';
 import { dishBuffs, platterBuffs, slotsFor, steakBuffs, tierFor } from '../src/core/platters';
 import { questChance, resolveQuest, rollItem } from '../src/core/quests';
 import { SAVE_KEY, loadGame, saveGame, type KeyValueStorage } from '../src/core/save';
-import { addReputation, advanceDay, isTrialDay, newGame } from '../src/core/state';
+import { TRIAL_GOAL, addReputation, advanceDay, isRushDay, isTrialDay, newGame, trialProgress } from '../src/core/state';
 import { DISHES, DISH_LIST } from '../src/data/dishes';
 import { DELIVERY_LIST } from '../src/data/deliveries';
 import { FOOD_SKILL_LIST } from '../src/data/food-skills';
 import { INGREDIENTS, INGREDIENT_LIST, unlockSource } from '../src/data/ingredients';
 import { MONSTERS, MONSTER_LIST } from '../src/data/monsters';
+import { monsterPool } from '../src/core/quests';
 import { WEAPONS_BY_ID } from '../src/data/hunters';
 
 const fixed = (v: number) => () => v;
@@ -199,10 +201,12 @@ describe('low punishment', () => {
     expect(r.reputation).toBe(0);
     expect(r.items).toEqual([]);
   });
-  it('the Rank Trial repeats until passed', () => {
+  it('the Rank Trial opens on Day 5 with enough reputation and repeats until passed', () => {
     const s = newGame(fixed(0.5));
     expect(isTrialDay(s)).toBe(false);
     s.day = 5;
+    expect(isTrialDay(s)).toBe(false); // not enough reputation yet
+    s.reputation = 170;
     expect(isTrialDay(s)).toBe(true);
     s.day = 6;
     expect(isTrialDay(s)).toBe(true);
@@ -313,13 +317,13 @@ describe('v0.3', () => {
     expect(readSettings(storage)).toEqual({ muted: false, music: 1, textScale: 1, assist: true });
     expect(readSettings(null)).toEqual(DEFAULT_SETTINGS);
   });
-  it('new games start with an empty tutorial and v2 saves are wiped', () => {
+  it('new games start with an empty tutorial and older saves are wiped', () => {
     const s = newGame(fixed(0.5));
     expect(s.tutorial).toEqual([]);
-    expect(s.version).toBe(3);
+    expect(s.version).toBe(4);
     const storage = memoryStorage();
-    const { favorites: _f, tutorial: _t, ...v2 } = s;
-    storage.setItem(SAVE_KEY, JSON.stringify({ ...v2, version: 2 }));
+    const { staff: _s, rushDay: _r, actOneDone: _a, ...v3 } = s;
+    storage.setItem(SAVE_KEY, JSON.stringify({ ...v3, version: 3 }));
     expect(loadGame(storage).reset).toBe(true);
   });
   it('the tutorial covers every scene with unique ids', () => {
@@ -331,5 +335,118 @@ describe('v0.3', () => {
     expect(arrivalInterval(1, false, fixed(0))).toBe(7000);
     expect(arrivalInterval(1, true, fixed(0))).toBe(5600);
     expect(arrivalInterval(10, false, fixed(1))).toBeCloseTo(11500 * 0.75);
+  });
+});
+
+describe('v0.4', () => {
+  it('grades the Soup Pot and widens it with assist', () => {
+    expect(gradePot(0.8, 3)).toBe(2);
+    expect(gradePot(0.8, 2)).toBe(1);
+    expect(gradePot(0.5, 2)).toBe(1);
+    expect(gradePot(0.3, 3)).toBe(0);
+    expect(gradePot(0.9, 1)).toBe(0);
+    const a = potBand(true);
+    const n = potBand(false);
+    expect(a.high - a.low).toBeGreaterThan(n.high - n.low);
+    expect(a.cueMs).toBeGreaterThan(n.cueMs);
+  });
+  it('Fish and Veggie Platters use the Soup Pot from Day 3, the Grill before', () => {
+    const s = newGame(fixed(0.5));
+    expect(potOpen(s)).toBe(false);
+    expect(stationsFor('fishPlatter', s)).toEqual(['board', 'grill']);
+    expect(stationsFor('meatPlatter', s)).toEqual(['board', 'grill']);
+    s.day = 3;
+    expect(stationsFor('veggiePlatter', s)).toEqual(['board', 'pot']);
+    expect(stationsFor('meatPlatter', s)).toEqual(['board', 'grill']);
+  });
+  it('hires, assigns and pays kitchen Palicoes', () => {
+    const s = newGame(fixed(0.5));
+    s.zenny = 10_000;
+    expect(hireStaff(s)).toBe(false); // not before Day 5
+    s.day = STAFF_DAY;
+    s.zenny = HIRE_COSTS[0] - 1;
+    expect(hireStaff(s)).toBe(false);
+    s.zenny = 10_000;
+    expect(hireStaff(s)).toBe(true);
+    expect(hireStaff(s)).toBe(true);
+    expect(hireStaff(s)).toBe(false); // two at most
+    expect(s.zenny).toBe(10_000 - HIRE_COSTS[0] - HIRE_COSTS[1]);
+    const [a, b] = s.staff;
+    assignStaff(s, a.id, 'grill');
+    assignStaff(s, b.id, 'grill'); // takes the grill from a
+    expect(a.station).toBeNull();
+    expect(stationStaff(s, 'grill')).toBe(b);
+    s.zenny = WAGE + 10;
+    expect(payWages(s)).toBe(WAGE);
+    expect([a.off, b.off]).toEqual([false, true]); // no debt: the unpaid Palico takes the day off
+    expect(stationStaff(s, 'grill')).toBeUndefined();
+    expect(s.zenny).toBe(10);
+  });
+  it('kitchen Palicoes cook Rare, then Well-done after enough dishes', () => {
+    const s = newGame(fixed(0.5));
+    s.day = STAFF_DAY;
+    s.zenny = 5000;
+    hireStaff(s);
+    expect(staffQuality(s.staff[0])).toBe(1);
+    s.staff[0].cooked = LEVEL_UP_DISHES;
+    expect(staffQuality(s.staff[0])).toBe(2);
+  });
+  it('advanceDay pays the wages', () => {
+    const s = newGame(fixed(0.5));
+    s.day = STAFF_DAY;
+    s.zenny = 2500;
+    hireStaff(s);
+    advanceDay(s, fixed(0.5));
+    expect(s.zenny).toBe(2500 - HIRE_COSTS[0] - WAGE);
+  });
+  it('VIPs pay double, give bonus reputation and hunt 4-star or harder monsters', () => {
+    const plain = dishPayment(DISHES.meatPlatter, 2, 1, 0.45, true);
+    const vip = vipPayment(DISHES.meatPlatter, 2, 1, 0.45, true);
+    expect(vip.total).toBe(plain.total * 2);
+    expect(vip.reputation).toBe(plain.reputation + 3);
+    expect(vipPayment(DISHES.meatPlatter, 1, 1, 0.45, true).reputation).toBe(dishPayment(DISHES.meatPlatter, 1, 1, 0.45, true).reputation);
+    for (let i = 0; i < 10; i++) expect(vipMonster(fixed(i / 10), monsterPool(MONSTER_LIST, 8)).stars).toBeGreaterThanOrEqual(4);
+    expect(vipMonster(fixed(0), monsterPool(MONSTER_LIST, 4)).stars).toBe(3); // hardest available
+  });
+  it('raids and VIPs only come from their first day', () => {
+    expect(raidAt(2, fixed(0))).toBeNull();
+    expect(raidAt(3, fixed(0))).toBeCloseTo(0.4);
+    expect(raidAt(3, fixed(0.5))).toBeNull();
+    expect(vipAt(3, fixed(0))).toBeNull();
+    expect(vipAt(4, fixed(0))).toBeCloseTo(0.2);
+  });
+  it('a Jagras eats one stocked platter ingredient', () => {
+    const s = newGame(fixed(0.5));
+    const before = s.stock.wyvernThigh;
+    expect(raidSteal(s, fixed(0))).toBe('wyvernThigh');
+    expect(s.stock.wyvernThigh).toBe(before - 1);
+    s.stock = {};
+    expect(raidSteal(s, fixed(0))).toBeNull();
+  });
+  it('the Rank Trial shift counts Rare or better and needs met', () => {
+    const ok = { quality: 2, matched: true };
+    const plain = { quality: 1, matched: false };
+    const burnt = { quality: 0, matched: true };
+    expect(trialProgress([ok, ok, ok, plain, plain, plain, plain, plain]).passed).toBe(true);
+    expect(trialProgress([ok, ok, plain, plain, plain, plain, plain, plain]).passed).toBe(false); // 2 needs met
+    const t = trialProgress([ok, ok, ok, ok, plain, plain, plain, burnt]);
+    expect(t).toEqual({ served: 7, needsMet: 4, passed: false }); // burnt doesn't count
+    expect(TRIAL_GOAL).toEqual({ served: 8, needsMet: 3 });
+  });
+  it('Rush Hour is one day, and speeds up arrivals', () => {
+    const s = newGame(fixed(0.5));
+    expect(isRushDay(s)).toBe(false);
+    s.rushDay = 7;
+    s.day = 7;
+    expect(isRushDay(s)).toBe(true);
+    s.actOneDone = true;
+    expect(isRushDay(s)).toBe(false);
+    expect(arrivalInterval(1, false, fixed(0), true)).toBeCloseTo(7000 / RUSH.arrivals);
+  });
+  it('Low Rank monsters follow World star ratings', () => {
+    const stars = Object.fromEntries(MONSTER_LIST.map((m) => [m.id, m.stars]));
+    expect(stars).toMatchObject({ paolumu: 4, legiana: 5, odogaron: 5, rathalos: 5, diablos: 5 });
+    expect(MONSTERS.legiana.locale).toBe('Coral Highlands');
+    expect(MONSTERS.odogaron.locale).toBe('Rotten Vale');
   });
 });

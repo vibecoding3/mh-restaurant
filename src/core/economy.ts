@@ -1,10 +1,23 @@
-import type { Dish, DishId, FoodCategory, MealBuffs, NeedId, PlatterId, Quality, Rng } from './types';
+import type { Dish, DishId, FoodCategory, MealBuffs, Monster, NeedId, PlatterId, Quality, Rng, StationId } from './types';
 import type { GameState } from './state';
 import { INGREDIENTS, INGREDIENT_LIST } from '../data/ingredients';
 import { UPGRADES } from '../data/upgrades';
 import { DELIVERIES } from '../data/deliveries';
 import { DISHES, isPlatter } from '../data/dishes';
 import { slotsFor } from './platters';
+
+/** The Soup Pot opens on Day 3 ("Low Rank 3" in the GDD). Until then its dishes use the Grill. */
+export const POT_DAY = 3;
+
+export function potOpen(state: GameState): boolean {
+  return state.day >= POT_DAY;
+}
+
+/** The stations a dish goes through today. */
+export function stationsFor(dish: DishId, state: GameState): StationId[] {
+  const stations = DISHES[dish].stations;
+  return potOpen(state) ? [...stations] : stations.map((st) => (st === 'pot' ? 'grill' : st));
+}
 
 /** Low punishment: a burnt dish still pays 70%. */
 const QUALITY_PRICE = [0.7, 1, 1.3];
@@ -168,6 +181,31 @@ export function dishPayment(dish: Dish, quality: Quality, patienceLeft: number, 
   const tip = Math.round(dish.price * tipRate * Math.max(0, Math.min(1, patienceLeft)));
   const needBonus = matched ? Math.round(dish.price * 0.25) : 0;
   return { base, tip, needBonus, total: base + tip + needBonus, reputation: QUALITY_REP[quality] + (matched ? 1 : 0) };
+}
+
+/** VIP regulars pay double and give bonus reputation for a Well-done meal that meets their need. */
+export const VIP = { pay: 2, bonusRep: 3, walkoutRep: 2, patience: 1.2, minStars: 4 };
+
+export function vipPayment(dish: Dish, quality: Quality, patienceLeft: number, tipRate: number, matched: boolean): Payment {
+  const p = dishPayment(dish, quality, patienceLeft, tipRate, matched);
+  const total = p.total * VIP.pay;
+  return { base: p.base * VIP.pay, tip: p.tip * VIP.pay, needBonus: p.needBonus * VIP.pay, total, reputation: p.reputation + (quality === 2 && matched ? VIP.bonusRep : 0) };
+}
+
+/** A VIP's quest: a 4-star or harder monster when one is available, otherwise the hardest one. */
+export function vipMonster(rng: Rng, pool: Monster[]): Monster {
+  const top = Math.max(...pool.map((m) => m.stars));
+  const hard = pool.filter((m) => m.stars >= Math.min(VIP.minStars, top));
+  return hard[Math.floor(rng() * hard.length) % hard.length];
+}
+
+/** A Jagras that reaches the counter eats one portion of a stocked platter ingredient. Returns its id, or null. */
+export function raidSteal(state: GameState, rng: Rng): string | null {
+  const ids = [...new Set(Object.values(state.platters).flat())].filter((id) => (state.stock[id] ?? 0) > 0);
+  if (ids.length === 0) return null;
+  const id = ids[Math.floor(rng() * ids.length) % ids.length];
+  state.stock[id] -= 1;
+  return id;
 }
 
 export interface MenuOption {

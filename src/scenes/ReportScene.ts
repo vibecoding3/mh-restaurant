@@ -2,17 +2,19 @@ import Phaser from 'phaser';
 import type { MealBuffs } from '../core/types';
 import { resolveQuest, type QuestResult } from '../core/quests';
 import { dishBuffs } from '../core/platters';
-import { TRIAL_REPUTATION, addReputation, advanceDay, isTrialDay } from '../core/state';
+import { TRIAL_GOAL, addReputation, advanceDay, trialProgress } from '../core/state';
 import { saveGame } from '../core/save';
 import { ARMOR_BY_ID, HUNTER_TYPES, WEAPONS_BY_ID, hunterLabel } from '../data/hunters';
 import { INGREDIENTS } from '../data/ingredients';
-import { CANTEEN_QUEST, MONSTERS } from '../data/monsters';
+import { CANTEEN_QUEST, MONSTERS, ZORAH_QUEST } from '../data/monsters';
+import { VIP_BY_ID } from '../data/cast';
 import { DISHES, SPIT_RESULTS } from '../data/dishes';
 import { FOOD_SKILLS } from '../data/food-skills';
 import { NEED_LABELS, QUALITY_NAMES, TIER_LABELS } from '../data/stations';
-import { session, type ServedRecord } from '../session';
+import { emptyShift, session, type ServedRecord } from '../session';
 import {
-  Button, COLORS, CREAM, GOLD, INK, INK_SOFT, W, badgeIcon, drawHunter, drawWoodBg, icon, iconText, panel, stars, title, txt,
+  Button, COLORS, CREAM, GOLD, INK, INK_SOFT, W, badgeIcon, drawHunter, drawWoodBg, fitWidth, icon, iconText, panel, stars, title,
+  txt,
 } from '../ui/theme';
 import { sfx } from '../ui/sfx';
 import { MUSIC, playMusic } from '../ui/music';
@@ -46,7 +48,7 @@ export class ReportScene extends Phaser.Scene {
 
   create(): void {
     const s = session.state;
-    const shift = session.shift ?? { served: [], earned: 0, repDelta: 0, walkouts: 0 };
+    const shift = session.shift ?? emptyShift();
     session.shift = null;
     playMusic(MUSIC.fanfare, false);
 
@@ -82,9 +84,14 @@ export class ReportScene extends Phaser.Scene {
       }
     }
     const finishedDay = s.day;
-    const trialToday = isTrialDay(s);
-    const trialPassed = trialToday && s.reputation >= TRIAL_REPUTATION;
-    if (trialPassed) s.trialPassed = true;
+    const trialToday = shift.trial;
+    const trial = trialProgress(shift.served);
+    const trialPassed = trialToday && trial.passed;
+    if (trialPassed) {
+      s.trialPassed = true;
+      s.rushDay = finishedDay + 2;
+    }
+    if (shift.rush) s.actOneDone = true;
     advanceDay(s);
     saveGame(s);
 
@@ -125,12 +132,19 @@ export class ReportScene extends Phaser.Scene {
     if (trialToday) {
       notes.push(trialPassed
         ? 'The Commander: "Rank Trial passed. Your Canteen has the Commission\'s approval!"'
-        : `The Commander: "Not yet (${s.reputation}/${TRIAL_REPUTATION}). Try the Rank Trial again tomorrow."`);
+        : `The Commander: "Not yet: ${trial.served}/${TRIAL_GOAL.served} served, ${trial.needsMet}/${TRIAL_GOAL.needsMet} needs met. Try again tomorrow."`);
     }
+    if (trialPassed) notes.push('The Commission sets out for Zorah Magdaros in two days. Expect a rush!');
+    if (shift.rush) notes.push(`The Commission sets out for "${ZORAH_QUEST}". Low Rank complete!`);
+    if (shift.staffCooked) notes.push(`Kitchen Palicoes cooked ${shift.staffCooked} dish${shift.staffCooked > 1 ? 'es' : ''}.`);
+    if (shift.raided.length) notes.push(`Jagras ate ${shift.raided.length} ingredient${shift.raided.length > 1 ? 's' : ''}.`);
     if (s.returning.length) notes.push(`${s.returning.length} carted hunter${s.returning.length > 1 ? 's' : ''} will be back tomorrow.`);
-    this.footer.add(txt(this, 1250, 870, notes.join('\n'), 24, levelUp || trialPassed ? GOLD : CREAM, {
-      wordWrap: { width: 380 }, lineSpacing: 4,
-    }));
+    const noteText = txt(this, 1250, 866, notes.join('\n'), 22, levelUp || trialPassed || shift.rush ? GOLD : CREAM, {
+      wordWrap: { width: 380 }, lineSpacing: 2,
+    });
+    // Many notes on one day: shrink them to stay above the Next button.
+    if (noteText.height > 120) noteText.setScale(120 / noteText.height);
+    this.footer.add(noteText);
     const next = new Button(this, 1770, 1020, 240, 72, `Day ${s.day}`, () => {
       sfx.click();
       this.scene.start('Prep');
@@ -160,11 +174,12 @@ export class ReportScene extends Phaser.Scene {
     const front = this.add.container(cx, cy).setScale(0, 1);
     const fg = this.add.graphics();
     fg.fillStyle(COLORS.parchment, 1).fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 18);
-    fg.lineStyle(6, 0x2a1a0e, 1).strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 18);
+    fg.lineStyle(record.vip ? 8 : 6, record.vip ? COLORS.gold : 0x2a1a0e, 1).strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 18);
     front.add(fg);
     const L = -CARD_W / 2 + 16;
     front.add(drawHunter(this, armor, record.typeId === 'veteran').setPosition(L + 44, -38).setScale(0.62));
-    front.add(txt(this, L + 92, -150, hunterLabel(record.armorId), 22, INK, { fontStyle: 'bold' }));
+    const who = record.vip ? VIP_BY_ID[record.vip].name : hunterLabel(record.armorId);
+    front.add(fitWidth(txt(this, L + 92, -150, who, 22, record.vip ? '#8a6a10' : INK, { fontStyle: 'bold' }), CARD_W - 124));
     front.add(txt(this, L + 92, -124, weapon.name, 19, INK_SOFT));
     front.add(txt(this, L + 92, -94, monster.name, 22, INK, { fontStyle: 'bold' }));
     front.add(stars(this, L + 92, -60, monster.stars, 20));

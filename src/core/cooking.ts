@@ -48,3 +48,22 @@ export function gradeChop(missed: number): Quality {
   if (missed <= 2) return 1;
   return 0;
 }
+
+export interface PotBand {
+  low: number;
+  high: number;
+  /** How long each "Add ingredient!" cue stays open, in ms. */
+  cueMs: number;
+}
+
+/** The Soup Pot's green heat band; assist widens it and holds the cues open longer. */
+export function potBand(assist = false): PotBand {
+  return assist ? { low: 0.38, high: 0.77, cueMs: 1300 } : { low: 0.45, high: 0.7, cueMs: 900 };
+}
+
+/** Soup Pot grade from the share of time spent in the green band and the ingredient cues hit (of 3). */
+export function gradePot(greenShare: number, hits: number): Quality {
+  if (greenShare >= 0.75 && hits >= 3) return 2;
+  if (greenShare >= 0.45 && hits >= 2) return 1;
+  return 0;
+}
