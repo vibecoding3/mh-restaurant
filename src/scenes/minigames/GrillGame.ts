@@ -1,15 +1,15 @@
 import Phaser from 'phaser';
 import type { Quality } from '../../core/types';
-import { combineQuality, gradeSkewer } from '../../core/cooking';
+import { combineQuality, gradeGrill } from '../../core/cooking';
 import { COLORS, txt } from '../../ui/theme';
 import { sfx } from '../../ui/sfx';
 import { BaseMinigame } from './base';
 
 const RAW = Phaser.Display.Color.ValueToColor(0xe8a0a0);
-const GOLD = Phaser.Display.Color.ValueToColor(0xd9902f);
+const GOLD = Phaser.Display.Color.ValueToColor(0xc8802f);
 const CHAR = Phaser.Display.Color.ValueToColor(0x2b1a12);
 
-interface Skewer {
+interface Cut {
   heat: number;
   rate: number;
   side: number; // 0 = first side, 1 = second side, 2 = done
@@ -19,94 +19,96 @@ interface Skewer {
   x: number;
 }
 
-/** Several skewers cook at different speeds. Flip each one when it turns golden, twice. */
+/** Three cuts sear at different speeds. Flip each one when it turns golden, twice. */
 export class GrillGame extends BaseMinigame {
-  private skewers: Skewer[] = [];
+  private cuts: Cut[] = [];
 
   constructor(scene: Phaser.Scene, root: Phaser.GameObjects.Container, done: (q: Quality) => void) {
-    super(scene, root, done, 'Skewer Grill', 'Tap a skewer when it turns golden to flip it. Space flips the hottest.');
+    super(scene, root, done, 'Grill', 'Click a cut when it turns golden to flip it. Space flips the hottest.');
 
     const grill = scene.add.graphics();
-    grill.fillStyle(0x2a2a2a, 1).fillRoundedRect(-230, -90, 460, 210, 8);
-    grill.fillStyle(0xd2522a, 0.35).fillRoundedRect(-220, -80, 440, 190, 6);
-    grill.lineStyle(4, 0x777777, 1);
-    for (let y = -70; y <= 100; y += 24) grill.lineBetween(-220, y, 220, y);
+    grill.fillStyle(0x2a2a2a, 1).fillRoundedRect(-460, -180, 920, 420, 16);
+    grill.fillStyle(0xd2522a, 0.35).fillRoundedRect(-440, -160, 880, 380, 12);
+    grill.lineStyle(8, 0x777777, 1);
+    for (let y = -140; y <= 200; y += 48) grill.lineBetween(-440, y, 440, y);
     root.add(grill);
 
-    [-140, 0, 140].forEach((x) => {
+    [-280, 0, 280].forEach((x) => {
       const g = scene.add.graphics();
-      const label = txt(scene, x, 135, 'Side 1', 14, '#f7ead0', { fontStyle: 'bold' }).setOrigin(0.5);
+      const label = txt(scene, x, 270, 'Side 1', 28, '#f7ead0', { fontStyle: 'bold' }).setOrigin(0.5);
       root.add([g, label]);
-      const s: Skewer = { heat: 0, rate: this.randRate(), side: 0, grades: [], g, label, x };
-      const zone = scene.add.rectangle(x, 15, 100, 220, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
-      zone.on('pointerdown', () => this.flip(s));
+      const c: Cut = { heat: 0, rate: this.randRate(), side: 0, grades: [], g, label, x };
+      const zone = scene.add.rectangle(x, 30, 220, 420, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+      zone.on('pointerdown', () => this.flip(c));
       root.add(zone);
-      this.skewers.push(s);
+      this.cuts.push(c);
     });
     this.onSpace(() => {
-      const hot = this.skewers.filter((s) => s.side < 2).sort((a, b) => b.heat - a.heat)[0];
+      const hot = this.cuts.filter((c) => c.side < 2).sort((a, b) => b.heat - a.heat)[0];
       if (hot) this.flip(hot);
     });
-    this.skewers.forEach((s) => this.draw(s));
+    this.cuts.forEach((c) => this.draw(c));
   }
 
   private randRate(): number {
     return 1 / Phaser.Math.FloatBetween(1.8, 3.0) / 1000;
   }
 
-  private flip(s: Skewer, forced = false): void {
-    if (this.finished || s.side >= 2) return;
-    s.grades.push(forced ? 0 : gradeSkewer(s.heat));
-    s.side++;
-    s.heat = 0;
-    s.rate = this.randRate();
+  private flip(c: Cut, forced = false): void {
+    if (this.finished || c.side >= 2) return;
+    c.grades.push(forced ? 0 : gradeGrill(c.heat));
+    c.side++;
+    c.heat = 0;
+    c.rate = this.randRate();
     sfx.flip();
-    s.label.setText(s.side === 1 ? 'Side 2' : '✔ Done');
-    this.scene.tweens.add({ targets: s.g, scaleX: -1, duration: 90, yoyo: true });
-    this.draw(s);
-    if (this.skewers.every((k) => k.side >= 2)) {
-      this.finish(combineQuality(this.skewers.flatMap((k) => k.grades)));
+    c.label.setText(c.side === 1 ? 'Side 2' : 'Done');
+    this.scene.tweens.add({ targets: c.g, scaleX: -1, duration: 90, yoyo: true });
+    this.draw(c);
+    if (this.cuts.every((k) => k.side >= 2)) {
+      this.finish(combineQuality(this.cuts.flatMap((k) => k.grades)));
     }
   }
 
   update(dt: number): void {
     if (this.finished) return;
-    for (const s of this.skewers) {
-      if (s.side >= 2) continue;
-      s.heat += s.rate * dt;
-      if (s.heat > 1.3) this.flip(s, true);
-      else this.draw(s);
+    for (const c of this.cuts) {
+      if (c.side >= 2) continue;
+      c.heat += c.rate * dt;
+      if (c.heat > 1.3) this.flip(c, true);
+      else this.draw(c);
     }
   }
 
-  private draw(s: Skewer): void {
-    const g = s.g.clear();
-    g.setPosition(s.x, 0);
+  private draw(c: Cut): void {
+    const g = c.g.clear();
+    g.setPosition(c.x, 0);
     let color: number;
-    if (s.side >= 2) {
-      const avg = combineQuality(s.grades);
-      color = avg === 2 ? 0xc07a2a : avg === 1 ? 0xd8a080 : 0x3a2418;
+    if (c.side >= 2) {
+      const avg = combineQuality(c.grades);
+      color = avg === 2 ? 0xb06a2a : avg === 1 ? 0xd8a080 : 0x3a2418;
     } else {
-      const h = s.heat;
+      const h = c.heat;
       if (h >= 0.65 && h <= 0.95) color = GOLD.color;
       else {
-        const c = h < 0.65
+        const k = h < 0.65
           ? Phaser.Display.Color.Interpolate.ColorWithColor(RAW, GOLD, 100, (h / 0.65) * 100)
           : Phaser.Display.Color.Interpolate.ColorWithColor(GOLD, CHAR, 100, Math.min(100, ((h - 0.95) / 0.35) * 100));
-        color = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+        color = Phaser.Display.Color.GetColor(k.r, k.g, k.b);
       }
     }
-    g.fillStyle(0xd8c49a, 1).fillRect(-3, -95, 6, 210);
-    const golden = s.side < 2 && s.heat >= 0.65 && s.heat <= 0.95;
-    for (let i = 0; i < 3; i++) {
-      const y = -55 + i * 50;
-      if (golden) g.fillStyle(COLORS.gold, 0.6).fillCircle(0, y, 30);
-      g.fillStyle(color, 1).fillRoundedRect(-22, y - 18, 44, 36, 10);
+    const golden = c.side < 2 && c.heat >= 0.65 && c.heat <= 0.95;
+    if (golden) g.fillStyle(COLORS.gold, 0.5).fillRoundedRect(-104, -150, 208, 330, 40);
+    // a thick cut with a fat cap and sear marks
+    g.fillStyle(color, 1).fillRoundedRect(-84, -130, 168, 290, 46);
+    g.fillStyle(0xf2e0c8, 0.85).fillRoundedRect(-84, -130, 26, 290, { tl: 46, bl: 46, tr: 0, br: 0 });
+    if (c.side > 0 || c.heat > 0.5) {
+      g.lineStyle(8, 0x2b1a12, 0.55);
+      for (let y = -90; y <= 120; y += 52) g.lineBetween(-50, y + 20, 60, y - 20);
     }
-    if (s.side < 2 && s.heat > 0.3) {
+    if (c.side < 2 && c.heat > 0.3) {
       g.fillStyle(0xffffff, 0.3);
       const t = this.scene.time.now / 200;
-      for (let i = 0; i < 3; i++) g.fillCircle(Math.sin(t + i * 2) * 14, -105 - ((t * 10 + i * 12) % 30), 4);
+      for (let i = 0; i < 3; i++) g.fillCircle(Math.sin(t + i * 2) * 28, -170 - ((t * 20 + i * 24) % 60), 8);
     }
   }
 }

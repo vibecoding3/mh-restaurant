@@ -2,15 +2,35 @@
 
 | | |
 |---|---|
-| **Document version** | 0.2 |
+| **Document version** | 0.3 |
 | **Date** | 2026-10-26 |
-| **Game version covered** | 0.1 (prototype, released) → 0.2 (next) |
+| **Game version covered** | 0.2 (canon pass, released) → 0.3 (next) |
 | **Genre** | 2D restaurant management / time management |
-| **Platform** | Web browser (desktop first, mobile-friendly), 100% offline |
+| **Platform** | Desktop web browsers, 100% offline. English only. |
 | **Engine** | Phaser 3 + TypeScript + Vite |
 | **Default resolution** | 1920 × 1080, capped at 60 FPS |
 | **Session length** | 4–6 min per service shift; 20–40 min per sitting |
 | **Status** | Unofficial, non-commercial fan game based on *Monster Hunter: World* (and its *Iceborne* expansion) |
+
+### Changes since document version 0.2
+These record the design decisions made for game version 0.2 (full list in [PLAN-v0.2.md](PLAN-v0.2.md)).
+- **Pre-made canon dishes:** hunters order Meat, Fish or Veggie Platters, the Chef's Choice Platter or a Well-Done Steak. Platter ingredients are **set in morning prep**, like *World's* Favorite Platters. This replaces the Custom Platter order in §4.3.
+- **Point-and-click** interaction (Diner Dash style), not a walking chef.
+- **Low punishment, no game over.**
+  - A walkout costs 1 reputation and no Zenny.
+  - A burnt dish still pays 70%.
+  - Reputation never drops below 0.
+  - A cart costs nothing, and the hunter returns the next day.
+  - A missed Rank Trial is retried the next day.
+- **Field-item returns:** hunters bring back only real gathered or carved items, never monster parts.
+- **Platform:** desktop only and English only. The offline install (PWA) waits until release.
+- **Assets:**
+  - free assets only (CC0, CC BY, SIL OFL);
+  - **no emoji** anywhere in the game;
+  - music *inspired by* *World*, never its own tracks;
+  - characters stay code-drawn.
+- **Scope:** polish Low Rank before starting High Rank or Master Rank.
+- **Ingredient slots:** confirmed as 2 per platter at first, then 4 after "Flying Sparks: Tobi-Kadachi".
 
 ### Changes since document version 0.1
 - The setting is now **Monster Hunter: World** only. Content from other Monster Hunter games has been removed.
@@ -103,8 +123,9 @@ Earn **Canteen Reputation** to clear the Commander's **Rank Trials** and move fr
 ### 4.1 Customers (hunters)
 | Attribute | Description |
 |---|---|
-| **Patience** | Hearts that drain while the hunter waits. A hunter whose patience runs out leaves angry, which costs reputation. |
-| **Ticket (order)** | What the hunter wants from their platter. Early tickets name a stat tier ("Attack Up (S)"), and later ones add a food skill ("Felyne Heroics"). See §4.3. |
+| **Patience** | Hearts that drain while the hunter waits. A hunter whose patience runs out leaves, which costs 1 reputation (low punishment). |
+| **Need** | What the hunter needs for their quest (Attack, Defense, Elemental Res or Stamina), shown as an icon over their head. A dish that meets it earns a bigger tip and better quest odds. |
+| **Ticket (order)** | The pre-made dish the hunter picked from today's menu. Hunters prefer dishes that meet their need. See §4.3. |
 | **Quest** | A *World* monster (e.g. Great Jagras, Anjanath, Rathalos) at a star rating. |
 | **Threat profile** | Taken from the monster's role in *World*. Elemental attackers (Rathian, Rathalos, Legiana, Kirin) make Elemental Res matter, and hard hitters (Anjanath, Barroth) make Defense matter. |
 | **Armor / weapon** | Mostly cosmetic. The armor set hints at their rank and favourite targets. |
@@ -134,11 +155,14 @@ The Oven Felyne and Soup Felyne, plus extra kitchen Palicoes later on, can **aut
 ### 4.3 Meals: canon platters only
 *World's* Canteen has no fixed named dishes. A meal is a **platter built from ingredients**, and the ingredient mix sets its buffs. Hunter's Canteen keeps that model exactly:
 
-- **Custom Platter:** the core order type. The ticket names a target, and the player fills the platter's ingredient slots from the pantry before cooking.
+- **Pre-made platters (v0.2):** the **Meat Platter**, **Fish Platter** and **Veggie Platter** are on the menu. The player sets each platter's ingredients during **morning prep**, like *World's* **Favorite Platters**. Hunters then order dishes, not ingredients.
   - **Meat** gives **Attack Up**, **Fish** gives **Defense Up**, and **Vegetables** give **Elemental Res Up**. Tiers are **(S) / (M) / (L)** at 2 / 4 / 6 matching ingredients.
-  - Every ingredient belongs to a **skill group**. Food ingredients are in Courage, Resilience, Vigor, Acumen or Artillery, and drinks are in Perception, Fortune, Preparation or Trailblazer. Enough ingredients from one group activate that group's **food skill** (e.g. Vigor → Felyne Heroics; full table in Appendix A.3).
-  - **Fresh ingredients** rotate daily. Each one adds **+10 max Health** and half a star to the skill-activation rating. Three stars means the skill is guaranteed.
+  - Every ingredient belongs to a **skill group**. Food ingredients are in Courage, Resilience, Vigor, Acumen or Artillery, and drinks are in Perception, Fortune, Preparation or Trailblazer.
+    - 2 / 4 / 6 ingredients of one group activate that group's first / second / third **food skill**. For example, two Courage ingredients give Felyne Polisher. Full table in Appendix A.3.
+    - Skills roll against an activation rating of 1 to 3 stars. Burnt or rare cooking lowers the activation chance.
+  - **Fresh ingredients** rotate daily (one meat, one fish, one vegetable). Each one adds **+10 max Health** and half a star to the skill-activation rating. Three stars means the skill is guaranteed.
   - **Stamina** bonus scales with Canteen level, up to +50.
+  - Ingredient slots per platter: **2**, then **4** after "Flying Sparks: Tobi-Kadachi".
 - **Chef's Choice Platter:** the one-tap option, which uses as many fresh ingredients as possible. Fast to cook but random in result. Good for impatient hunters.
 - **Favorite Platters:** saved presets. Once a ticket type repeats, the player can save its ingredient set for fast plating.
 - **Daily skills:** three random daily food skills (from *World's* daily pool, e.g. Felyne Weakener, Felyne Temper, Felyne Booster) that activate only when the platter doesn't qualify for a standard skill.
@@ -146,7 +170,7 @@ The Oven Felyne and Soup Felyne, plus extra kitchen Palicoes later on, can **aut
 - **Field cooking side orders:** **Well-Done Steak** (the canon effect is +50 max Stamina), **Rare Steak** and **Burnt Meat**, all cooked on the BBQ Spit from **Raw Meat**.
 - **Grand Appreciation Platter:** a festival-only Gathering Hub meal (§4.9).
 
-Prototype v0.1 still uses placeholder dishes. Replacing them with the platter system above is the headline task for v0.2 (§9.3).
+v0.2 implements the pre-made platters, the Chef's Choice Platter and the BBQ Spit steaks. Favorite Platter presets beyond the three menu platters, daily skills, Vouchers and the Grand Appreciation Platter come later.
 
 ### 4.4 Buffs and quest resolution
 - Each quest has a **threat profile**: base difficulty from the monster's star rating, plus how much Attack, Defense, Elemental Res, Health and Stamina matter against it.
@@ -155,7 +179,8 @@ Prototype v0.1 still uses placeholder dishes. Replacing them with the platter sy
 - **Outcomes:**
   - *Success:* Zenny bonus, reputation, and progress on canteen delivery requests and ingredient unlocks.
   - *Barely made it:* partial rewards.
-  - *Carted:* no rewards, a small reputation loss, and the hunter comes back the next day wanting a better meal.
+  - *Carted:* no rewards, but **no penalty** (low punishment). The hunter comes back the next day wanting a better meal.
+- **Returns:** successful hunters bring back **field items** from the monster's locale: Raw Meat, Herb, Blue Mushroom, Sushifish, Whetfish, Herbivore Egg and Wyvern Egg. They never bring back monster parts. Some items are Canteen ingredients, some feed Provisions Manager deliveries, and the rest sell for a few Zenny.
 - **Food skills in the quest simulation.** These are simplified stand-ins for each skill's effect in *World*:
   - **Felyne Moxie:** turns a cart into "barely made it."
   - **Felyne Heroics:** a bonus against high-star monsters.
@@ -210,14 +235,14 @@ Promotion to the next rank needs a **Rank Trial**: a special shift set by the Co
 
 ## 5. Controls
 
-| Action | Mouse / touch | Keyboard |
+| Action | Mouse | Keyboard |
 |---|---|---|
-| Select hunter / ticket / station | Click / tap | Number keys 1–9 to pick a station |
+| Select hunter / ticket / station | Click | Number keys 1–9 to pick a station |
 | Pick ingredients for a platter | Click / tap | Arrow keys + Enter |
-| Station minigame | Hold / release / tap, depending on the station | Space |
+| Station minigame | Hold / release / click, depending on the station | Space |
 | Pause | Button | Esc |
 
-The game must be fully playable with one input method (mouse or touch). The keyboard is an optional accelerator.
+The game targets **desktop only** and must be fully playable with the mouse alone. The keyboard is an optional accelerator.
 
 ---
 
@@ -241,7 +266,17 @@ All UI is laid out for **1920 × 1080** and scales to fit (§8.4).
 - **Characters:** chibi versions of the *World* cast and of hunters in recognizable *World* armor silhouettes. The Meowscular Chef and his Palico crew get the most animation.
 - **UI:** wood, parchment and Research Commission styling. Tickets look like *World* quest slips.
 - **Audio:** upbeat folk instruments in the canteen, big comic stingers for Well-done and Burnt, and the "cooking song" timing cue on the BBQ Spit.
-- **Asset policy (unchanged):** all assets are original or openly licensed (CC0/CC-BY). No ripped sprites, music or sound from official games. Names and content are referenced for this fan project; art and audio are made fresh.
+- **Asset policy:**
+  - All assets are original or openly licensed (CC0, CC BY or SIL OFL), recorded in `ASSETS_LICENSES.md` and on the Credits screen.
+  - No ripped sprites, music or sound from official games. Names and content are referenced for this fan project; art and audio are made fresh or come from free packs.
+  - **No emoji** anywhere in the game: icons are sprites. A unit test scans `src/` for emoji.
+- **v0.2 assets:**
+  - **Icons:** game-icons.net (CC BY 3.0).
+  - **Panels and buttons:** Kenney's UI Pack RPG Expansion (CC0).
+  - **Fonts:** Cinzel and Alegreya Sans (SIL OFL), bundled locally.
+  - **Sound effects:** Kenney (CC0).
+  - **Characters:** still code-drawn, improved.
+- **Music:** *inspired by World*, never its own tracks. CC0 tracks: a warm town theme for the title and prep, an upbeat tavern song for service, a cooking song for the BBQ Spit and a fanfare for the report.
 
 ---
 
@@ -256,19 +291,21 @@ All UI is laid out for **1920 × 1080** and scales to fit (§8.4).
 ### 8.2 100% offline
 - No backend, no server code, no accounts, no network calls during play. Everything ships in the static build.
 - Fonts and assets are bundled locally, with no CDN at runtime.
-- Planned: a **service worker / PWA manifest**, so the game keeps working with no connection after the first visit and can be "installed" from the browser.
+- At **release** (M6): a **service worker / PWA manifest**, so the game keeps working with no connection after the first visit and can be "installed" from the browser.
 - No co-op or multiplayer of any kind (§10).
 
 ### 8.3 Architecture
 - **Data-driven content:** ingredients, skill groups, food skills, monsters, cast and stations live in data files under `src/data/`. Adding an ingredient or a monster should not require code changes. Every canon entry records its source (Appendix A).
 - **Game logic separate from rendering:** simulation code in `src/core/` is pure TypeScript with no Phaser imports, so it can be tested on its own.
-- **Phaser scenes:** `Boot`, `Preload`, `Title`, `Hub` (Astera / Seliana), `MorningPrep`, `Service`, `QuestReport`, `IngredientBook`, `Settings`.
-- **Save system:** a versioned JSON save in `localStorage`. Each save stores the **save-schema version** and the **game version** that wrote it, and migration functions handle schema changes. The game autosaves at the end of each day.
+- **Phaser scenes (planned):** `Boot`, `Preload`, `Title`, `Hub` (Astera / Seliana), `MorningPrep`, `Service`, `QuestReport`, `IngredientBook`, `Settings`. v0.2 has `Preload`, `Title`, `Credits`, `Prep`, `Service` and `Report`.
+- **Save system:** a versioned JSON save in `localStorage`. Each save stores the **save-schema version** and the **game version** that wrote it. The game autosaves at the end of each day.
+  - Until the Low Rank release, a save from another schema version is **wiped**, and the title screen says so.
+  - After that, migration functions will handle schema changes.
 
 ### 8.4 Display and performance
-- **Default (design) resolution: 1920 × 1080.** All layout coordinates are authored at this size. The canvas uses Phaser's `Scale.FIT` with centering, so it letterboxes on other aspect ratios and scales down cleanly to phones.
-- **Frame rate capped at 60 FPS** through the Phaser game config (`fps: { target: 60, limit: 60 }`), so 120/144 Hz monitors don't run the game faster or burn extra battery. Game logic uses frame delta time and is clamped against long frames.
-- Targets: a steady 60 FPS on mid-range laptops and recent phones, and an initial download under 15 MB, with audio lazy-loaded.
+- **Default (design) resolution: 1920 × 1080.** All layout coordinates are authored at this size. The canvas uses Phaser's `Scale.FIT` with centering, so it letterboxes on other aspect ratios and scales to any desktop window.
+- **Frame rate capped at 60 FPS** through the Phaser game config (`fps: { target: 60, limit: 61 }`), so 120/144 Hz monitors don't run the game faster or burn extra battery. The limit is 61 rather than 60 because high-refresh frames add up to just under 1/60 s; at 60, a 180 Hz display drops to about 52 steps a second. Game logic uses frame delta time and is clamped against long frames.
+- Targets: a steady 60 FPS on mid-range laptops and an initial download under 15 MB. v0.2 is about 5.6 MB, mostly music.
 
 ### 8.5 Folder structure
 ```
@@ -295,7 +332,7 @@ mh-restaurant/
   - Each roadmap milestone bumps **MINOR**.
   - Bug fixes on a released version bump **PATCH**.
   - **1.0.0** is the first complete release (M6).
-- **The current prototype is v0.1** (`0.1.0`).
+- **The current version is v0.2** (`0.2.0`).
 - The single source of truth is `version` in `package.json`. The build injects it (Vite `define`), and it shows on the title screen and in saves.
 - Each release gets a git tag `vX.Y.Z` on `main` and an entry in `CHANGELOG.md`. The GitHub Pages deployment always serves the latest commit on `main`.
 - This design document has its own document version in its header, separate from the game version.
@@ -303,12 +340,17 @@ mh-restaurant/
 ### 9.2 Version history
 | Version | Contents |
 |---|---|
+| **0.2.0** (canon pass, released) | Content is canon *World* throughout: Astera and the Meowscular Chef; the five canon dishes with platters set in morning prep; 26 Canteen ingredients and 15 food skills under *World's* rules; 8 Low Rank monsters; field-item returns; Provisions Manager deliveries; the Canteen level-up after "Flying Sparks: Tobi-Kadachi". Gameplay is low punishment with no game over. Presentation: 1920 × 1080 with a 60 FPS cap, no emoji, free icons, UI, sound and music, a Credits screen, the version on the title screen, and save-schema v2. |
 | **0.1.0** (prototype, released) | Playable greybox core loop: morning prep, service shift, three minigames (Chopping Board, BBQ Spit, Skewer Grill), quest report, upgrades, `localStorage` saves, GitHub Pages deploy. **Known gaps:** the content is placeholder and not yet canon (invented dishes, characters and village; Great Jaggi instead of Great Jagras), the resolution is 960 × 540, and there is no FPS cap or version display. |
 
-### 9.3 Next version: 0.2 (canon pass)
-- Replace the placeholder content with canon *World* content: Astera, the cast from §2.3, the platter system from §4.3 with real ingredients, and Great Jagras / Kulu-Ya-Ku / Pukei-Pukei / Tobi-Kadachi / Anjanath / Rathian as the first quest targets.
-- Switch to a 1920 × 1080 design resolution and a 60 FPS cap.
-- Show the version on the title screen, add `CHANGELOG.md`, and start the git tags.
+### 9.3 Next version: 0.3 (vertical slice)
+- The rest of the MVP (§9.4) on top of v0.2:
+  - a Handler tutorial on Day 1;
+  - balancing from playtests;
+  - Favorite Platter presets for repeated orders;
+  - the Ingredient book.
+- An art pass on the dining hall and stations.
+- Settings: text size, minigame assist and fullscreen.
 
 ### 9.4 MVP / vertical slice
 - Astera only, Low Rank.
@@ -322,12 +364,12 @@ mh-restaurant/
 |---|---|---|---|
 | M0 | Pre-production | — | README, GDD, repo scaffold |
 | M1–M2 | Prototype | **0.1** | Greybox core loop (done) |
-| M2.5 | Canon pass | 0.2 | Canon content, 1080p, 60 FPS cap, versioning |
+| M2.5 | Canon pass | **0.2** | Canon content, 1080p, 60 FPS cap, versioning (done) |
 | M3 | Vertical slice | 0.3 | MVP content (§9.4), first art pass, audio, Handler tutorial |
 | M4 | Low Rank complete | 0.4 | Soup Pot, staff, Botanical Research, Grimalkyne trades, Jagras raids, LR Rank Trial |
 | M5a | High Rank | 0.5 | Oven / Oven Roast, Gathering Hub festivals, HR monsters |
 | M5b | Master Rank / Seliana | 0.6 | Seliana hub, Grammeowster Chef, drinks, stews and gratins, MR monsters |
-| M6 | Polish & release | 1.0 | Balancing, accessibility, mobile QA, PWA offline install |
+| M6 | Polish & release | 1.0 | Balancing, accessibility, PWA offline install |
 
 ---
 
@@ -339,9 +381,10 @@ mh-restaurant/
 
 ## 11. Open questions
 - Camera: single-screen dining hall or a scrolling, expandable hall?
-- Point-and-click (current) or a walking chef character? *Current lean: point-and-click for mobile friendliness.*
-- How many ingredient slots per platter does each Canteen level allow in *World*? This needs checking in-game before we balance around it.
-- Which food skills ship in the MVP, and how exactly does each one map into the quest simulation?
+- ~~Point-and-click or a walking chef?~~ *Decided: point-and-click.*
+- ~~Ingredient slots per Canteen level?~~ *Decided: 2, then 4 after "Flying Sparks: Tobi-Kadachi" (monsterhunterwiki.org). The later levels (6?) still need checking.*
+- ~~Food skills in the quest simulation?~~ *Decided: every group skill has a one-line effect in `src/data/food-skills.ts`. With 2 or 4 slots, Low Rank reaches each group's first and second skills.*
+- Balance: are 80 reputation by Day 5, and the current hunter arrival rate, the right pace?
 
 ---
 

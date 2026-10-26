@@ -1,25 +1,27 @@
-import type { Quality } from './core/types';
+import type { DishId, Quality } from './core/types';
 import { newGame, type GameState } from './core/state';
 
 export interface ServedRecord {
-  name: string;
   typeId: string;
   monsterId: string;
-  recipeId: string;
+  dishId: DishId;
+  /** Ingredients the dish was made from. */
+  ingredients: string[];
   quality: Quality;
-  armor: number;
-  weapon: string;
+  armorId: string;
+  weaponId: string;
 }
 
 export interface ShiftSummary {
   served: ServedRecord[];
   earned: number;
   repDelta: number;
-  angry: number;
+  walkouts: number;
 }
 
 /** The running game, shared between scenes. */
-export const session: { state: GameState; shift: ShiftSummary | null } = {
+export const session: { state: GameState; shift: ShiftSummary | null; saveReset: boolean } = {
   state: newGame(),
   shift: null,
+  saveReset: false,
 };

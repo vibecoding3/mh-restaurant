@@ -1,7 +1,6 @@
 # Hunter's Canteen: v0.2 Implementation Plan
 
-> **Status:** approved plan, not yet implemented. Written 2026-10-26.
-> To resume: *"Implement the v0.2 plan in `docs/PLAN-v0.2.md`."*
+> **Status:** implemented in v0.2.0 (2026-10-26). Deviations are listed at the end.
 
 ## Decisions from the design Q&A
 
@@ -142,6 +141,22 @@ v0.2 delivers all of that and updates the GDD and README to match.
 4. FPS cap: with `?debug`, expose the game object and confirm `game.loop.actualFps` reads about 60 or less.
 5. After the push, watch the GitHub Actions run, then load the live Pages URL and play a shift.
 
+## Deviations in the implementation
+- **Food art:** no pixel food pack. Ingredients and dishes use tinted game-icons.net icons, so every icon in the game has the same style.
+- **Felyne Moxie / Felyne Heroics:** World needs 6 ingredients of one group for a group's third skill. With 2 or 4 slots, Low Rank only reaches the first and second skills (for example Felyne Polisher, Felyne Feet). Moxie's cart rescue is in the code for later ranks.
+- **Monster stars and needs:** star ratings follow World's assignments: Great Jagras and Kulu-Ya-Ku 2★; Pukei-Pukei, Barroth, Jyuratodus and Tobi-Kadachi 3★; Anjanath and Rathian 4★. Each hunter's need:
+
+  | Need | Monsters |
+  |---|---|
+  | Stamina | Kulu-Ya-Ku |
+  | Defense | Pukei-Pukei, Barroth, Anjanath |
+  | Elemental Res | Jyuratodus, Tobi-Kadachi, Rathian |
+- **Rank Trial:** the target is 80 reputation instead of 60, because shifts now earn more reputation.
+- **Sources of items:** the Argosy doesn't sell Raw Meat, Herbivore Egg or Wyvern Egg. Hunters bring them back.
+- **FPS cap:** the limit is 61, not 60. Phaser's limiter otherwise drops to about 52 steps a second on 120/180/240 Hz displays (GDD §8.4).
+- **Sizzle:** no CC0 sizzle sound was found in the Kenney packs. The BBQ Spit plays a pitched-up metal pot sound plus its cooking song.
+- **Audio format:** Ogg Vorbis only, which Chrome, Edge and Firefox play on desktop.
+
 ## Research sources
 - [Fextralife: Canteen](https://monsterhunterworld.wiki.fextralife.com/Canteen)
 - [Fextralife: Chef's Choice Platter](https://monsterhunterworld.wiki.fextralife.com/Chef's+Choice+Platter)
@@ -156,3 +171,5 @@ v0.2 delivers all of that and updates the GDD and README to match.
 - [Steam discussion: canteen buffs](https://steamcommunity.com/app/582010/discussions/0/2521353993637599150)
 - [Steam discussion: Oven Roast](https://steamcommunity.com/app/582010/discussions/0/1735462352481152733)
 - [SegmentNext: MHW fishing guide](https://segmentnext.com/2018/01/30/monster-hunter-world-fishing)
+- [Fextralife: Food Skills](https://monsterhunterworld.wiki.fextralife.com/Food+Skills) (skill descriptions)
+- [Fextralife: Assignments](https://monsterhunterworld.wiki.fextralife.com/Assignments) (Low Rank star ratings)

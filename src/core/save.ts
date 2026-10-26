@@ -1,4 +1,4 @@
-import { SAVE_VERSION, type GameState } from './state';
+import { GAME_VERSION, SAVE_VERSION, type GameState } from './state';
 
 export const SAVE_KEY = 'hunters-canteen-save';
 
@@ -6,6 +6,12 @@ export interface KeyValueStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
+}
+
+export interface LoadResult {
+  state: GameState | null;
+  /** True if an old or unreadable save was found and wiped. */
+  reset: boolean;
 }
 
 /** localStorage can be missing or throw (private mode, blocked site data). */
@@ -20,6 +26,7 @@ function defaultStorage(): KeyValueStorage | null {
 export function saveGame(state: GameState, storage = defaultStorage()): boolean {
   if (!storage) return false;
   try {
+    state.gameVersion = GAME_VERSION;
     storage.setItem(SAVE_KEY, JSON.stringify(state));
     return true;
   } catch {
@@ -27,14 +34,27 @@ export function saveGame(state: GameState, storage = defaultStorage()): boolean 
   }
 }
 
-export function loadGame(storage = defaultStorage()): GameState | null {
-  if (!storage) return null;
+/** Loads the save. Saves from another schema version are wiped (allowed until the Low Rank release). */
+export function loadGame(storage = defaultStorage()): LoadResult {
+  if (!storage) return { state: null, reset: false };
+  let raw: string | null;
   try {
-    const raw = storage.getItem(SAVE_KEY);
-    return raw ? migrate(JSON.parse(raw)) : null;
+    raw = storage.getItem(SAVE_KEY);
   } catch {
-    return null;
+    return { state: null, reset: false };
   }
+  if (!raw) return { state: null, reset: false };
+  let state: GameState | null = null;
+  try {
+    state = validate(JSON.parse(raw));
+  } catch {
+    state = null;
+  }
+  if (!state) {
+    clearSave(storage);
+    return { state: null, reset: true };
+  }
+  return { state, reset: false };
 }
 
 export function clearSave(storage = defaultStorage()): void {
@@ -45,11 +65,11 @@ export function clearSave(storage = defaultStorage()): void {
   }
 }
 
-/** Upgrades older save schemas to the current one. Returns null for unreadable saves. */
-export function migrate(data: unknown): GameState | null {
+/** Returns the save if it matches the current schema, otherwise null. */
+export function validate(data: unknown): GameState | null {
   if (!data || typeof data !== 'object') return null;
   const save = data as Partial<GameState>;
-  if (save.version !== SAVE_VERSION) return null; // only one schema so far
-  if (typeof save.day !== 'number' || typeof save.zenny !== 'number' || !save.stock) return null;
+  if (save.version !== SAVE_VERSION) return null;
+  if (typeof save.day !== 'number' || typeof save.zenny !== 'number' || !save.stock || !save.platters) return null;
   return save as GameState;
 }

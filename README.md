@@ -2,38 +2,59 @@
 
 *Working title.* An unofficial, non-commercial fan game set in the **Monster Hunter** world, built as a 2D restaurant management game.
 
-You play a Palico chef who has just taken over a run-down canteen in a hunting village. Hunters come in before their quests and order hearty meals. Cook them well and the hunters set out with better buffs, come back alive, and bring you rare monster ingredients. Cook them badly and they get carted, so your reputation suffers.
+You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster Hunter: World*. Research Commission hunters drop in before their quests and order canon Canteen meals. Cook them well and they head out with the right buffs and food skills, come back safe, and bring you gathered items. Every character, dish, ingredient, food skill and monster comes from *World*.
 
-> **Status:** playable prototype (M1/M2). Greybox art drawn in code, synthesized sound effects.
+> **Status:** v0.2.0, the *World* canon pass. Code-drawn characters, free-licensed icons, UI, sound and music (see [ASSETS_LICENSES.md](ASSETS_LICENSES.md)).
 >
-> **▶ Play it in your browser: https://vibecoding3.github.io/mh-restaurant/**
+> **Play it in your browser: https://vibecoding3.github.io/mh-restaurant/**
 >
-> The game runs 100% offline in the browser. There is no backend; progress is saved in `localStorage`.
+> Desktop browsers, English only. The game runs 100% offline in the browser. There is no backend, and progress is saved in `localStorage`.
 
-## How to play the prototype
+## How to play
 
-1. **Morning prep.** Buy ingredients from Bartholo (prices change daily), pick up to 4 dishes for the menu, and buy upgrades.
-2. **Service shift (about 2 min).** Tap a hunter at the door to seat them. Their order appears as a ticket above their table. Tap the glowing station (or press `1` `2` `3`) to cook:
-   - **Chopping Board:** tap the ingredients in numbered order before the timer runs out.
-   - **BBQ Spit:** hold the mouse, a finger or `Space` to spin the meat, and release in the golden zone.
-   - **Skewer Grill:** flip each skewer when it turns golden, twice. `Space` flips the hottest one.
+1. **Morning prep.**
+   - **The Argosy:** buy ingredients from the Captain. Prices change daily, and three ingredients are fresh each day.
+   - **Set Platters:** pick the ingredients for the Meat, Fish and Veggie Platters.
+     - Meat gives Attack Up, Fish gives Defense Up and Vegetables give Elemental Res Up.
+     - Two ingredients of the same skill group (Courage, Resilience, Vigor, Acumen, Artillery) give a food skill.
+     - Fresh ingredients add Health and make the skill more likely to activate.
+   - **Menu:** choose which dishes are on today's menu, including the Chef's Choice Platter and the Well-Done Steak.
+   - **Delivery requests:** hand items to the Provisions Manager to unlock new ingredients.
+   - **Smithy upgrades:** buy canteen improvements from the Second Fleet Master's team.
+2. **Service shift (about 2 min).** Click a hunter at the door to seat them. The icon over their head shows what they need for their quest. Their order appears as a ticket on the rail. Click the glowing station (or press `1` `2` `3`) to cook:
+   - **Chopping Board:** click the ingredients in numbered order before the timer runs out.
+   - **BBQ Spit:** hold the mouse button or `Space` to spin the Raw Meat, and release in the gold for a Well-Done Steak.
+   - **Grill:** flip each cut when it turns golden, twice. `Space` flips the hottest one.
 
-   When the ticket says READY, tap it (or the hunter) to serve. Each hunter wants a buff (the badge by their hearts); matching it earns bonus tips. `Esc` pauses the game.
-3. **Quest report.** See whether each fed hunter succeeded, barely made it or got carted. Successful hunters bring back monster materials that unlock the best recipes.
+   When the ticket says READY, click it (or the hunter) to serve. A dish that gives what the hunter needs earns a bigger tip. `Esc` pauses the game.
+3. **Quest report.** The Handler shows whether each hunter succeeded, barely made it or got carted.
+   - Hunters bring back field items such as Raw Meat, Herbs and Whetfish.
+   - Carted hunters come back the next day.
+   - Completing "Flying Sparks: Tobi-Kadachi" levels up the Canteen to 4 ingredients per platter.
 
-Goal: reach ⭐60 reputation by the end of Day 5 to pass the Rank Trial. After that, the game continues in endless mode.
+Goal: reach 80 reputation by Day 5 to pass the Commander's Rank Trial. There is no game over. A missed trial can be retried the next day.
 
-Debug: add `?shift=20` to the URL to shorten a shift to 20 seconds.
+Debug: `?shift=20` shortens a shift to 20 seconds, and `?debug` exposes the game object as `window.game`.
 
 ## Planned features
 
-- **Fast-paced service shifts.** Seat hunters, take orders, cook, plate and serve before their patience runs out.
-- **Cooking minigames.** Spin the meat on the BBQ spit (*"So tasty!"*), flip skewers on the grill, and simmer hotpots without burning them.
-- **Meals that matter.** Each dish gives the hunter buffs (Attack, Defense, Health, Stamina, plus skills such as Felyne Heroics). The buffs change their odds on the quest, and you see the result when they return.
-- **Ingredient economy.** Buy staples from the village trader, send Palico gathering teams out on expeditions, and trade monster parts for rare produce.
-- **Restaurant growth.** Upgrade stations, hire and train Palico staff, unlock tables, and decorate with monster trophies.
-- **Village events.** Festivals, rush hours, and the occasional monster crashing into the dining hall.
-- **Progression across regions.** Move from Low Rank to High Rank to Master Rank menus, each with new hunters, monsters and recipes.
+Following the [GDD](docs/GDD.md), the Low Rank is polished first, then High Rank and Master Rank.
+
+- **More Low Rank:**
+  - the Soup Pot station;
+  - kitchen Palicoes who auto-run stations;
+  - Botanical Research and Grimalkyne trades for ingredients;
+  - Jagras raids and rush hours;
+  - a Handler tutorial.
+- **High Rank:**
+  - the Oven and Oven Roast;
+  - Gathering Hub festivals with the Grand Appreciation Platter;
+  - the next Canteen level after "Tickled Pink".
+- **Master Rank in Seliana:**
+  - the Grammeowster Chef;
+  - drinks and drink skills;
+  - stews and gratins.
+- **Release:** balancing, accessibility and an offline install (PWA).
 
 ## Tech stack
 
@@ -42,13 +63,15 @@ Debug: add `?shift=20` to the URL to shorten a shift to 20 seconds.
 | Engine    | [Phaser 3](https://phaser.io/) (2D, WebGL/Canvas) |
 | Language  | TypeScript                                      |
 | Build     | Vite                                            |
-| Platform  | Desktop and mobile browsers, deployable as a static site |
+| Platform  | Desktop browsers, deployable as a static site; 1920 × 1080 scaled to fit, 60 FPS cap |
 | Saves     | Browser `localStorage`                          |
 
 ## Documentation
 
 - [Game Design Document](docs/GDD.md): vision, core loop, systems, content and roadmap.
-- [v0.2 Implementation Plan](docs/PLAN-v0.2.md): the next version (canon content pass), with the design decisions behind it.
+- [v0.2 Implementation Plan](docs/PLAN-v0.2.md): the canon content pass, with the design decisions behind it.
+- [Changelog](CHANGELOG.md): what changed in each version.
+- [Asset licenses](ASSETS_LICENSES.md): every third-party icon, sound, track and font, with author and license.
 
 ## Getting started
 
@@ -59,10 +82,15 @@ npm test         # unit tests for the pure game logic (src/core)
 npm run build    # type-check + production build into dist/
 ```
 
-Code layout follows the GDD: `src/core/` is pure, Phaser-free game logic (economy, cooking grades, quest resolution, save); `src/data/` holds the content definitions; `src/scenes/` holds the Phaser scenes and minigames.
+Code layout follows the GDD:
+- `src/core/` is pure, Phaser-free game logic: platter rules, economy, cooking grades, quest resolution and saves.
+- `src/data/` holds the canon content definitions.
+- `src/scenes/` holds the Phaser scenes and minigames.
+- `src/ui/` holds the theme, audio and music helpers.
+- `public/assets/` holds the bundled icons, UI art, sounds, music and fonts.
 
 Every push to `main` runs the tests, builds the game and deploys it to GitHub Pages via `.github/workflows/deploy.yml`.
 
 ## Disclaimer
 
-This is a fan project made for fun and is **not for sale**. It has no affiliation with Capcom and is not endorsed by it. *Monster Hunter* and all related names, characters and marks are the property of Capcom Co., Ltd. The project will not distribute ripped game assets: all art, audio and code in this repository are original or properly licensed.
+This is a fan project made for fun and is **not for sale**. It has no affiliation with Capcom and is not endorsed by it. *Monster Hunter* and all related names, characters and marks are the property of Capcom Co., Ltd. The project will not distribute ripped game assets: all art, audio and code in this repository are original or openly licensed (CC0, CC BY or SIL OFL; see [ASSETS_LICENSES.md](ASSETS_LICENSES.md)).

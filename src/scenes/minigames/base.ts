@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Quality } from '../../core/types';
 import { QUALITY_COLORS, QUALITY_LABELS } from '../../data/stations';
-import { INK, txt } from '../../ui/theme';
+import { INK, TITLE_FONT, txt } from '../../ui/theme';
 import { sfx } from '../../ui/sfx';
 
 export interface Minigame {
@@ -24,8 +24,8 @@ export abstract class BaseMinigame implements Minigame {
     title: string,
     hint: string,
   ) {
-    root.add(txt(scene, 0, -150, title, 26, INK, { fontStyle: 'bold' }).setOrigin(0.5));
-    root.add(txt(scene, 0, -120, hint, 15, '#6b4a30').setOrigin(0.5));
+    root.add(txt(scene, 0, -300, title, 50, INK, { fontFamily: TITLE_FONT, fontStyle: 'bold' }).setOrigin(0.5));
+    root.add(txt(scene, 0, -244, hint, 28, '#6b4a30').setOrigin(0.5));
   }
 
   abstract update(dt: number): void;
@@ -43,12 +43,17 @@ export abstract class BaseMinigame implements Minigame {
     if (up) this.listen(kb, 'keyup-SPACE', up);
   }
 
+  /** Grade label shown when done; the spit names its real outcome instead. */
+  protected resultLabel(q: Quality): string {
+    return QUALITY_LABELS[q];
+  }
+
   protected finish(q: Quality): void {
     if (this.finished) return;
     this.finished = true;
     [sfx.burnt, sfx.rare, sfx.tasty][q]();
-    const label = txt(this.scene, 0, 0, QUALITY_LABELS[q], 54, QUALITY_COLORS[q], {
-      fontStyle: 'bold', stroke: '#2a1a0e', strokeThickness: 8,
+    const label = txt(this.scene, 0, 0, this.resultLabel(q), 104, QUALITY_COLORS[q], {
+      fontFamily: TITLE_FONT, fontStyle: 'bold', stroke: '#2a1a0e', strokeThickness: 14,
     }).setOrigin(0.5).setScale(0.3);
     this.root.add(label);
     this.scene.tweens.add({ targets: label, scale: 1, duration: 260, ease: 'Back.easeOut' });

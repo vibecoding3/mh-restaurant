@@ -25,8 +25,8 @@ export function gradeSpit(meter: number, window: SpitWindow): Quality {
   return 1;
 }
 
-/** Skewer side doneness: below 0.65 is rare, 0.65–0.95 golden, beyond is burnt. */
-export function gradeSkewer(heat: number): Quality {
+/** Grill doneness of one side of a cut: below 0.65 is rare, 0.65–0.95 golden, beyond is burnt. */
+export function gradeGrill(heat: number): Quality {
   if (heat > 0.95) return 0;
   if (heat >= 0.65) return 2;
   return 1;

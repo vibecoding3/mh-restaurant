@@ -1,12 +1,17 @@
-import type { BuffId, Quality, Recipe, Rng } from './types';
+import type { Dish, DishId, FoodCategory, MealBuffs, NeedId, Quality, Rng } from './types';
 import type { GameState } from './state';
-import { INGREDIENT_LIST } from '../data/ingredients';
+import { INGREDIENTS, INGREDIENT_LIST } from '../data/ingredients';
 import { UPGRADES } from '../data/upgrades';
+import { DELIVERIES } from '../data/deliveries';
+import { DISHES, isPlatter } from '../data/dishes';
+import { slotsFor } from './platters';
 
-const QUALITY_PRICE = [0.5, 1, 1.5];
-const QUALITY_REP = [-1, 1, 3];
+/** Low punishment: a burnt dish still pays 70%. */
+const QUALITY_PRICE = [0.7, 1, 1.3];
+const QUALITY_REP = [0, 1, 2];
+const FOOD_CATEGORIES: FoodCategory[] = ['meat', 'fish', 'veg'];
 
-/** Trader prices swing ±25% each day. */
+/** Argosy prices swing ±25% each day. */
 export function rollPrices(rng: Rng): Record<string, number> {
   const prices: Record<string, number> = {};
   for (const ing of INGREDIENT_LIST) {
@@ -16,13 +21,31 @@ export function rollPrices(rng: Rng): Record<string, number> {
   return prices;
 }
 
+/** One fresh ingredient per category, drawn from the unlocked Argosy stock, as in World's daily rotation. */
+export function rollFresh(rng: Rng, unlocked: string[]): string[] {
+  const fresh: string[] = [];
+  for (const cat of FOOD_CATEGORIES) {
+    const pool = unlocked.filter((id) => INGREDIENTS[id]?.category === cat && INGREDIENTS[id].basePrice !== undefined);
+    if (pool.length) fresh.push(pool[Math.floor(rng() * pool.length) % pool.length]);
+  }
+  return fresh;
+}
+
 export function buyIngredient(state: GameState, id: string, qty: number): boolean {
   const price = state.prices[id];
-  if (price === undefined || qty <= 0) return false;
+  if (price === undefined || qty <= 0 || !state.unlocked.includes(id)) return false;
   const cost = price * qty;
   if (state.zenny < cost) return false;
   state.zenny -= cost;
   state.stock[id] = (state.stock[id] ?? 0) + qty;
+  return true;
+}
+
+export function sellItem(state: GameState, id: string, qty: number): boolean {
+  const price = INGREDIENTS[id]?.sellPrice;
+  if (price === undefined || qty <= 0 || (state.stock[id] ?? 0) < qty) return false;
+  state.stock[id] -= qty;
+  state.zenny += price * qty;
   return true;
 }
 
@@ -34,58 +57,111 @@ export function buyUpgrade(state: GameState, id: string): boolean {
   return true;
 }
 
-/** How many portions of a recipe the stock allows. */
-export function portions(stock: Record<string, number>, recipe: Recipe): number {
-  let n = Infinity;
-  for (const [id, qty] of Object.entries(recipe.ingredients)) {
-    n = Math.min(n, Math.floor((stock[id] ?? 0) / qty));
-  }
-  return n === Infinity ? 0 : n;
-}
-
-export function consumeIngredients(stock: Record<string, number>, recipe: Recipe): boolean {
-  if (portions(stock, recipe) < 1) return false;
-  for (const [id, qty] of Object.entries(recipe.ingredients)) stock[id] -= qty;
+/** Hands items to the Provisions Manager and unlocks the delivery's ingredients. */
+export function completeDelivery(state: GameState, id: string): boolean {
+  const d = DELIVERIES[id];
+  if (!d || state.deliveries.includes(id) || (state.stock[d.item] ?? 0) < d.qty) return false;
+  state.stock[d.item] -= d.qty;
+  state.deliveries.push(id);
+  for (const u of d.unlocks) if (!state.unlocked.includes(u)) state.unlocked.push(u);
   return true;
 }
 
-export function recipeHasBuff(recipe: Recipe, buff: BuffId): boolean {
-  return (recipe.buffs[buff] ?? 0) > 0;
+/** Adds or removes an ingredient from a prep-set platter. Same category only, no duplicates. */
+export function togglePlatterIngredient(state: GameState, dish: DishId, id: string): boolean {
+  if (!isPlatter(dish)) return false;
+  const list = state.platters[dish];
+  const i = list.indexOf(id);
+  if (i >= 0) {
+    list.splice(i, 1);
+    return true;
+  }
+  if (INGREDIENTS[id]?.category !== DISHES[dish].category || list.length >= slotsFor(state.canteenLevel)) return false;
+  list.push(id);
+  return true;
+}
+
+function countPortions(stock: Record<string, number>, ids: string[]): number {
+  if (ids.length === 0) return 0;
+  let n = Infinity;
+  for (const id of ids) n = Math.min(n, stock[id] ?? 0);
+  return n;
+}
+
+/**
+ * Picks Chef's Choice ingredients: a random category with enough distinct ingredients in stock,
+ * fresh ingredients first. Returns null if no category has enough.
+ */
+export function pickChefsChoice(rng: Rng, stock: Record<string, number>, fresh: string[], slots: number): string[] | null {
+  const options = FOOD_CATEGORIES
+    .map((cat) => INGREDIENT_LIST.filter((i) => i.category === cat && (stock[i.id] ?? 0) > 0).map((i) => i.id))
+    .filter((ids) => ids.length >= slots);
+  if (options.length === 0) return null;
+  const ids = options[Math.floor(rng() * options.length) % options.length];
+  ids.sort((a, b) => Number(fresh.includes(b)) - Number(fresh.includes(a)) || (stock[b] ?? 0) - (stock[a] ?? 0));
+  return ids.slice(0, slots);
+}
+
+/** Ingredients one portion of a dish would use right now, or null if it can't be made. */
+export function dishIngredients(state: GameState, dish: DishId, rng: Rng = Math.random): string[] | null {
+  if (dish === 'steak') return (state.stock.rawMeat ?? 0) > 0 ? ['rawMeat'] : null;
+  if (dish === 'chefsChoice') return pickChefsChoice(rng, state.stock, state.fresh, slotsFor(state.canteenLevel));
+  const ids = state.platters[dish];
+  return countPortions(state.stock, ids) > 0 ? [...ids] : null;
+}
+
+/** How many portions the stock allows (Chef's Choice: a lower bound for display). */
+export function portions(state: GameState, dish: DishId): number {
+  if (dish === 'steak') return state.stock.rawMeat ?? 0;
+  if (dish === 'chefsChoice') {
+    const slots = slotsFor(state.canteenLevel);
+    const stock = { ...state.stock };
+    let n = 0;
+    for (let ids = pickChefsChoice(() => 0, stock, [], slots); ids && n < 99; ids = pickChefsChoice(() => 0, stock, [], slots)) {
+      consumeIngredients(stock, ids);
+      n++;
+    }
+    return n;
+  }
+  return countPortions(state.stock, state.platters[dish]);
+}
+
+export function consumeIngredients(stock: Record<string, number>, ids: string[]): boolean {
+  if (ids.some((id) => (stock[id] ?? 0) < 1)) return false;
+  for (const id of ids) stock[id] -= 1;
+  return true;
+}
+
+/** Whether a meal gives what the hunter needs. */
+export function meetsNeed(buffs: MealBuffs, need: NeedId): boolean {
+  return need === 'stamina' ? buffs.stamina >= 50 : buffs.stat === need && buffs.tier > 0;
 }
 
 export interface Payment {
   base: number;
   tip: number;
-  wishBonus: number;
+  needBonus: number;
   total: number;
   reputation: number;
 }
 
 /** What a hunter pays for a served dish. patienceLeft is 0..1. */
-export function dishPayment(
-  recipe: Recipe, quality: Quality, patienceLeft: number, tipRate: number, wish: BuffId,
-): Payment {
-  const base = Math.round(recipe.price * QUALITY_PRICE[quality]);
-  const tip = Math.round(recipe.price * tipRate * Math.max(0, Math.min(1, patienceLeft)));
-  const matched = recipeHasBuff(recipe, wish);
-  const wishBonus = matched ? Math.round(recipe.price * 0.25) : 0;
-  return {
-    base, tip, wishBonus,
-    total: base + tip + wishBonus,
-    reputation: QUALITY_REP[quality] + (matched ? 1 : 0),
-  };
+export function dishPayment(dish: Dish, quality: Quality, patienceLeft: number, tipRate: number, matched: boolean): Payment {
+  const base = Math.round(dish.price * QUALITY_PRICE[quality]);
+  const tip = Math.round(dish.price * tipRate * Math.max(0, Math.min(1, patienceLeft)));
+  const needBonus = matched ? Math.round(dish.price * 0.25) : 0;
+  return { base, tip, needBonus, total: base + tip + needBonus, reputation: QUALITY_REP[quality] + (matched ? 1 : 0) };
 }
 
-/**
- * A hunter picks a dish from today's menu that the kitchen can still make,
- * preferring dishes that give the buff they want. Returns null if nothing is available.
- */
-export function chooseOrder(
-  rng: Rng, menu: Recipe[], stock: Record<string, number>, wish: BuffId,
-): Recipe | null {
-  const options = menu.filter((r) => portions(stock, r) > 0);
+export interface MenuOption {
+  dish: DishId;
+  buffs: MealBuffs;
+}
+
+/** A hunter picks a dish, preferring the ones that give what they need. Null if nothing is available. */
+export function chooseOrder(rng: Rng, options: MenuOption[], need: NeedId): MenuOption | null {
   if (options.length === 0) return null;
-  const weights = options.map((r) => (recipeHasBuff(r, wish) ? 3 : 1));
+  const weights = options.map((o) => (meetsNeed(o.buffs, need) ? 4 : 1));
   let roll = rng() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < options.length; i++) {
     roll -= weights[i];

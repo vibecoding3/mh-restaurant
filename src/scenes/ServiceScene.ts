@@ -1,17 +1,22 @@
 import Phaser from 'phaser';
-import type { HunterType, Monster, Quality, Recipe, StationId } from '../core/types';
-import { chooseOrder, consumeIngredients, dishPayment, recipeHasBuff } from '../core/economy';
+import type { ArmorSet, DishId, HunterType, MealBuffs, Monster, Quality, StationId, Weapon } from '../core/types';
+import { chooseOrder, consumeIngredients, dishIngredients, dishPayment, meetsNeed, type MenuOption } from '../core/economy';
 import { combineQuality, spitWindow } from '../core/cooking';
+import { dishBuffs } from '../core/platters';
 import { monsterPool } from '../core/quests';
-import { hasUpgrade } from '../core/state';
-import { HUNTER_NAMES, HUNTER_TYPES, WEAPONS, ARMOR_COLORS } from '../data/hunters';
+import { addReputation, hasUpgrade } from '../core/state';
+import { ARMOR_BY_ID, ARMOR_SETS, HUNTER_TYPES, WEAPONS, WEAPONS_BY_ID, hunterLabel } from '../data/hunters';
 import { INGREDIENTS } from '../data/ingredients';
-import { MONSTER_LIST } from '../data/monsters';
-import { RECIPES } from '../data/recipes';
-import { BUFF_LABELS, QUALITY_COLORS, STATIONS, STATION_ORDER } from '../data/stations';
+import { MONSTERS, MONSTER_LIST } from '../data/monsters';
+import { DISHES } from '../data/dishes';
+import { NEED_LABELS, QUALITY_COLORS, QUALITY_NAMES, STATIONS, STATION_ORDER } from '../data/stations';
 import { session, type ShiftSummary } from '../session';
-import { Button, COLORS, CREAM, H, INK, W, drawHunter, drawPalico, floatText, panel, txt } from '../ui/theme';
+import {
+  Button, COLORS, CREAM, GOLD, H, INK, INK_SOFT, TITLE_FONT, W, drawHunter, drawPalico, floatText, icon, iconText,
+  panel, txt,
+} from '../ui/theme';
 import { isMuted, sfx, toggleMute } from '../ui/sfx';
+import { MUSIC, endInterlude, playInterlude, playMusic } from '../ui/music';
 import type { Minigame } from './minigames/base';
 import { SpitGame } from './minigames/SpitGame';
 import { BoardGame } from './minigames/BoardGame';
@@ -19,18 +24,21 @@ import { GrillGame } from './minigames/GrillGame';
 
 // `?shift=<seconds>` shortens the shift for quick playtests.
 const SHIFT_MS = (Number(new URLSearchParams(location.search).get('shift')) || 120) * 1000;
-const TABLE_X = [250, 390, 530, 670, 810];
-const SEAT_Y = 252;
-const QUEUE_SLOTS = [{ x: 66, y: 300 }, { x: 128, y: 326 }, { x: 186, y: 300 }];
-const DOOR = { x: -30, y: 306 };
+const TABLE_X = [500, 780, 1060, 1340, 1620];
+const SEAT_Y = 504;
+const QUEUE_SLOTS = [{ x: 132, y: 600 }, { x: 256, y: 652 }, { x: 372, y: 600 }];
+const DOOR = { x: -60, y: 612 };
+const RAIL_Y = 162;
 const QUEUE_DRAIN = 0.75;
 const QUEUE_DRAIN_CLOSING = 2;
-const ANGRY_REP = 5;
+/** Low punishment: a walkout only costs 1 reputation. */
+const WALKOUT_REP = 1;
 
 type HunterState = 'walking' | 'queue' | 'deciding' | 'waiting' | 'eating';
 
 interface Ticket {
-  recipe: Recipe;
+  dish: DishId;
+  ingredients: string[];
   step: number;
   grades: Quality[];
   quality: Quality | null;
@@ -39,19 +47,18 @@ interface Ticket {
 
 interface Hunter {
   id: number;
-  name: string;
   type: HunterType;
   monster: Monster;
-  armor: number;
-  weapon: string;
+  armor: ArmorSet;
+  weapon: Weapon;
   patience: number;
   patienceMax: number;
   state: HunterState;
   table: number;
   timer: number;
   view: Phaser.GameObjects.Container;
-  hearts: Phaser.GameObjects.Text;
-  bubble: Phaser.GameObjects.Text;
+  hearts: Phaser.GameObjects.Image[];
+  bubble: Phaser.GameObjects.Image;
   ticket: Ticket | null;
 }
 
@@ -59,6 +66,8 @@ interface StationView {
   frame: Phaser.GameObjects.Rectangle;
   count: Phaser.GameObjects.Text;
 }
+
+const pick = <T>(list: T[]): T => list[Math.floor(Math.random() * list.length)];
 
 export class ServiceScene extends Phaser.Scene {
   private hunters: Hunter[] = [];
@@ -75,7 +84,7 @@ export class ServiceScene extends Phaser.Scene {
   private arrivalsOpen = true;
   private ended = false;
   private summary!: ShiftSummary;
-  private hud!: { clock: Phaser.GameObjects.Text; clockBar: Phaser.GameObjects.Rectangle; money: Phaser.GameObjects.Text; rep: Phaser.GameObjects.Text };
+  private hud!: { clock: Phaser.GameObjects.Text; clockBar: Phaser.GameObjects.Rectangle; money: Phaser.GameObjects.Container; rep: Phaser.GameObjects.Container };
   private hint!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -95,12 +104,13 @@ export class ServiceScene extends Phaser.Scene {
     this.arrivalsOpen = true;
     this.ended = false;
     this.tables = Array(hasUpgrade(s, 'table') ? 5 : 4).fill(null);
-    this.summary = { served: [], earned: 0, repDelta: 0, angry: 0 };
+    this.summary = { served: [], earned: 0, repDelta: 0, walkouts: 0 };
     session.shift = this.summary;
 
     this.drawRoom();
     this.drawHud();
     this.drawStations();
+    playMusic(MUSIC.service);
 
     const kb = this.input.keyboard;
     (['ONE', 'TWO', 'THREE'] as const).forEach((key, i) => kb?.on(`keydown-${key}`, () => this.useStation(STATION_ORDER[i])));
@@ -111,117 +121,121 @@ export class ServiceScene extends Phaser.Scene {
     });
 
     this.banner(`Day ${s.day}: doors open!`);
-    this.setHint('Hunters gather at the door. Tap one to seat them.');
+    this.setHint('Hunters gather at the door. Click one to seat them.');
   }
 
   // ---------------------------------------------------------------- layout
 
   private drawRoom(): void {
     const g = this.add.graphics();
-    // back wall
-    g.fillStyle(0x7a4e2e, 1).fillRect(0, 0, W, 200);
+    // back wall: ship timber, as in Astera
+    g.fillStyle(0x7a4e2e, 1).fillRect(0, 0, W, 400);
     g.fillStyle(0x6a4228, 1);
-    for (let x = 0; x < W; x += 48) g.fillRect(x, 0, 3, 200);
+    for (let x = 0; x < W; x += 96) g.fillRect(x, 0, 6, 400);
+    g.fillStyle(0x5a3820, 1).fillRect(0, 380, W, 20);
     // floor
-    g.fillStyle(COLORS.floor, 1).fillRect(0, 200, W, 140);
+    g.fillStyle(COLORS.floor, 1).fillRect(0, 400, W, 280);
     g.fillStyle(0x5e4129, 1);
-    for (let y = 214; y < 340; y += 18) g.fillRect(0, y, W, 2);
+    for (let y = 428; y < 680; y += 36) g.fillRect(0, y, W, 4);
     // door
-    g.fillStyle(0x2a1a0e, 1).fillRoundedRect(4, 214, 34, 110, 6);
-    g.fillStyle(COLORS.gold, 1).fillCircle(30, 270, 3);
-    // banner on wall
-    g.fillStyle(0xa83a2a, 1).fillRect(20, 128, 160, 30);
-    txt(this, 100, 143, "Hunter's Canteen", 15, CREAM, { fontStyle: 'bold' }).setOrigin(0.5);
+    g.fillStyle(0x2a1a0e, 1).fillRoundedRect(8, 428, 68, 220, 12);
+    g.fillStyle(COLORS.gold, 1).fillCircle(60, 540, 6);
+    // Research Commission banner
+    g.fillStyle(0xa83a2a, 1).fillRect(40, 268, 340, 64);
+    g.fillStyle(0x7a2a1e, 1).fillTriangle(40, 332, 80, 332, 40, 360).fillTriangle(380, 332, 340, 332, 380, 360);
+    txt(this, 210, 300, "Hunter's Canteen", 32, CREAM, { fontFamily: TITLE_FONT, fontStyle: 'bold' }).setOrigin(0.5);
     if (hasUpgrade(session.state, 'lanterns')) {
-      [300, 500, 700, 900].forEach((x) => {
-        g.fillStyle(0xf6c445, 0.18).fillCircle(x, 140, 30);
-        g.fillStyle(0xd9542a, 1).fillRoundedRect(x - 9, 128, 18, 24, 6);
+      [600, 1000, 1400, 1800].forEach((x) => {
+        g.fillStyle(0xf6c445, 0.18).fillCircle(x, 300, 64);
+        g.fillStyle(0x3e2716, 1).fillRect(x - 2, 248, 4, 24);
+        g.fillStyle(0xd9542a, 1).fillRoundedRect(x - 18, 272, 36, 48, 12);
       });
     }
     // tables (drawn above seated hunters via depth)
     this.tables.forEach((_, i) => {
       const t = this.add.graphics().setDepth(20);
       const x = TABLE_X[i];
-      t.fillStyle(0x000000, 0.25).fillEllipse(x, 300, 110, 22);
-      t.fillStyle(0x8a5a34, 1).fillRoundedRect(x - 52, 250, 104, 22, 6);
-      t.fillStyle(0x6a4226, 1).fillRect(x - 44, 272, 10, 24).fillRect(x + 34, 272, 10, 24);
-      txt(this, x, 261, `Table ${i + 1}`, 11, CREAM).setOrigin(0.5).setDepth(21);
+      t.fillStyle(0x000000, 0.25).fillEllipse(x, 600, 220, 44);
+      t.fillStyle(0x8a5a34, 1).fillRoundedRect(x - 104, 500, 208, 44, 12);
+      t.fillStyle(0x6a4226, 1).fillRect(x - 88, 544, 20, 48).fillRect(x + 68, 544, 20, 48);
+      txt(this, x, 522, `Table ${i + 1}`, 22, CREAM).setOrigin(0.5).setDepth(21);
     });
     // ticket rail
-    g.fillStyle(0x3e2716, 1).fillRect(0, 40, W, 82);
-    g.fillStyle(0x9aa3a8, 1).fillRect(0, 48, W, 4);
+    g.fillStyle(0x3e2716, 1).fillRect(0, 80, W, 164);
+    g.fillStyle(0x9aa3a8, 1).fillRect(0, 96, W, 8);
     // kitchen counter
-    g.fillStyle(0x3e2716, 1).fillRect(0, 336, W, H - 336);
-    g.fillStyle(0x9a6a3e, 1).fillRect(0, 336, W, 8);
+    g.fillStyle(0x3e2716, 1).fillRect(0, 672, W, H - 672);
+    g.fillStyle(0x9a6a3e, 1).fillRect(0, 672, W, 16);
   }
 
   private drawHud(): void {
     const s = session.state;
-    this.add.rectangle(0, 0, W, 40, 0x2a1a0e).setOrigin(0);
-    txt(this, 12, 9, `Day ${s.day}`, 18, CREAM, { fontStyle: 'bold' });
-    const clock = txt(this, 90, 9, '08:00', 18, CREAM, { fontStyle: 'bold' });
-    this.add.rectangle(160, 20, 160, 10, 0x4a3020).setOrigin(0, 0.5);
-    const clockBar = this.add.rectangle(160, 20, 0, 10, COLORS.gold).setOrigin(0, 0.5);
-    const money = txt(this, 360, 9, '', 18, CREAM, { fontStyle: 'bold' });
-    const rep = txt(this, 500, 9, '', 18, CREAM, { fontStyle: 'bold' });
+    this.add.rectangle(0, 0, W, 80, 0x2a1a0e).setOrigin(0);
+    txt(this, 24, 40, `Day ${s.day}`, 36, CREAM, { fontFamily: TITLE_FONT, fontStyle: 'bold' }).setOrigin(0, 0.5);
+    icon(this, 210, 40, 'clock', 36, 0xf7ead0);
+    const clock = txt(this, 236, 40, '08:00', 34, CREAM, { fontStyle: 'bold' }).setOrigin(0, 0.5);
+    this.add.rectangle(340, 40, 320, 20, 0x4a3020).setOrigin(0, 0.5);
+    const clockBar = this.add.rectangle(340, 40, 0, 20, COLORS.gold).setOrigin(0, 0.5);
+    const money = iconText(this, 720, 40, 'coin', '', 34, CREAM, 0xf2c94c);
+    const rep = iconText(this, 960, 40, 'star', '', 34, CREAM, 0xf2c94c);
     this.hud = { clock, clockBar, money, rep };
-    const muteBtn: Button = new Button(this, 870, 20, 50, 28, isMuted() ? '🔇' : '🔊',
-      () => muteBtn.setText(toggleMute() ? '🔇' : '🔊'), { size: 15 });
-    new Button(this, 928, 20, 50, 28, '⏸', () => this.togglePause(), { size: 15 });
+    const muteBtn: Button = new Button(this, 1740, 40, 100, 56, '', () => muteBtn.setIcon(toggleMute() ? 'mute' : 'sound'),
+      { icon: isMuted() ? 'mute' : 'sound', size: 28 });
+    new Button(this, 1856, 40, 100, 56, '', () => this.togglePause(), { icon: 'pause', size: 28 });
     // rail label
-    txt(this, 14, 64, '🧾 Orders', 14, CREAM, { fontStyle: 'bold' });
-    txt(this, 14, 84, 'Tap a ticket\nto pick it', 11, '#c9b08a');
+    iconText(this, 24, 140, 'scroll', 'Orders', 28, CREAM, 0xf7ead0);
+    txt(this, 28, 176, 'Click a ticket\nto pick it', 22, '#c9b08a');
     this.refreshHud();
   }
 
   private refreshHud(): void {
     const s = session.state;
-    this.hud.money.setText(`💰 ${s.zenny}z`);
-    this.hud.rep.setText(`⭐ ${s.reputation}`);
+    (this.hud.money.list[1] as Phaser.GameObjects.Text).setText(`${s.zenny}z`);
+    (this.hud.rep.list[1] as Phaser.GameObjects.Text).setText(`${s.reputation}`);
     const frac = Math.min(1, this.elapsed / SHIFT_MS);
     const minutes = 8 * 60 + Math.floor(frac * 6 * 60);
     this.hud.clock.setText(`${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
-    this.hud.clockBar.width = 160 * frac;
+    this.hud.clockBar.width = 320 * frac;
   }
 
   private drawStations(): void {
     STATION_ORDER.forEach((st, i) => {
-      const x = 20 + i * 256;
+      const x = 40 + i * 512;
       const info = STATIONS[st];
-      const frame = this.add.rectangle(x, 354, 240, 170, 0x5b3a24).setOrigin(0).setStrokeStyle(3, 0x2a1a0e)
+      const frame = this.add.rectangle(x, 708, 480, 340, 0x5b3a24).setOrigin(0).setStrokeStyle(6, 0x2a1a0e)
         .setInteractive({ useHandCursor: true });
       frame.on('pointerdown', () => this.useStation(st));
       const g = this.add.graphics();
-      this.drawStationArt(g, st, x + 120, 450);
-      txt(this, x + 12, 362, `${info.key}  ${info.name}`, 17, CREAM, { fontStyle: 'bold' });
-      const count = txt(this, x + 228, 500, '', 13, '#f2c94c', { fontStyle: 'bold' }).setOrigin(1, 0.5);
+      this.drawStationArt(g, st, x + 240, 900);
+      this.add.rectangle(x + 36, 744, 44, 44, 0x2a1a0e).setStrokeStyle(2, 0x9a6a3e);
+      txt(this, x + 36, 744, info.key, 30, GOLD, { fontStyle: 'bold' }).setOrigin(0.5);
+      iconText(this, x + 70, 744, info.icon, info.name, 34, CREAM, 0xf7ead0);
+      const count = txt(this, x + 456, 1010, '', 26, GOLD, { fontStyle: 'bold' }).setOrigin(1, 0.5);
       this.stations[st] = { frame, count };
     });
-    drawPalico(this, 880, 512).setScale(1.1);
-    this.hint = txt(this, 880, 360, '', 12, CREAM, { wordWrap: { width: 150 }, align: 'center' }).setOrigin(0.5, 0);
+    drawPalico(this, 1760, 1040).setScale(0.95);
+    panel(this, 1580, 692, 330, 116, 'light');
+    this.hint = txt(this, 1745, 750, '', 22, INK, { wordWrap: { width: 300 }, align: 'center' }).setOrigin(0.5);
   }
 
   private drawStationArt(g: Phaser.GameObjects.Graphics, st: StationId, cx: number, cy: number): void {
     if (st === 'board') {
-      g.fillStyle(0xc89a62, 1).fillRoundedRect(cx - 80, cy - 30, 160, 70, 10);
-      g.fillStyle(0x9aa3a8, 1).fillRect(cx + 10, cy - 10, 60, 10);
-      g.fillStyle(0x3e2716, 1).fillRect(cx - 20, cy - 10, 30, 10);
-      g.fillStyle(0x6c9a4b, 1).fillCircle(cx - 50, cy + 10, 12);
-      g.fillStyle(0xd96b6b, 1).fillEllipse(cx - 20, cy + 18, 30, 18);
+      g.fillStyle(0xc89a62, 1).fillRoundedRect(cx - 160, cy - 60, 320, 140, 20);
+      g.fillStyle(0x9aa3a8, 1).fillRect(cx + 20, cy - 20, 120, 40);
+      g.fillStyle(0x3e2716, 1).fillRect(cx - 40, cy - 12, 60, 24);
+      icon(this, cx - 100, cy + 20, 'herb', 64, 0x6ab04a);
+      icon(this, cx - 30, cy + 40, 'meat', 64, 0xc0563a);
     } else if (st === 'spit') {
-      g.fillStyle(0x2a1a0e, 1).fillRect(cx - 70, cy - 30, 8, 70).fillRect(cx + 62, cy - 30, 8, 70);
-      g.fillStyle(0x9aa3a8, 1).fillRect(cx - 70, cy - 22, 140, 4);
-      g.fillStyle(0xa0582a, 1).fillEllipse(cx, cy - 20, 70, 40);
-      g.fillStyle(0xe8542a, 1).fillTriangle(cx - 40, cy + 40, cx - 20, cy + 40, cx - 30, cy + 10)
-        .fillTriangle(cx - 10, cy + 40, cx + 10, cy + 40, cx, cy + 5).fillTriangle(cx + 20, cy + 40, cx + 40, cy + 40, cx + 30, cy + 12);
+      g.fillStyle(0x2a1a0e, 1).fillRect(cx - 140, cy - 60, 16, 140).fillRect(cx + 124, cy - 60, 16, 140);
+      g.fillStyle(0x9aa3a8, 1).fillRect(cx - 140, cy - 44, 280, 8);
+      g.fillStyle(0xa0582a, 1).fillEllipse(cx, cy - 40, 140, 80);
+      g.fillStyle(0xe8542a, 1).fillTriangle(cx - 80, cy + 80, cx - 40, cy + 80, cx - 60, cy + 20)
+        .fillTriangle(cx - 20, cy + 80, cx + 20, cy + 80, cx, cy + 10).fillTriangle(cx + 40, cy + 80, cx + 80, cy + 80, cx + 60, cy + 24);
     } else {
-      g.fillStyle(0x2a2a2a, 1).fillRoundedRect(cx - 80, cy - 25, 160, 60, 6);
-      g.lineStyle(3, 0x777777, 1);
-      for (let y = cy - 15; y < cy + 35; y += 12) g.lineBetween(cx - 75, y, cx + 75, y);
-      [-40, 0, 40].forEach((dx) => {
-        g.fillStyle(0xd8c49a, 1).fillRect(cx + dx - 2, cy - 35, 4, 70);
-        g.fillStyle(0xd9902f, 1).fillRoundedRect(cx + dx - 10, cy - 20, 20, 16, 5).fillRoundedRect(cx + dx - 10, cy + 2, 20, 16, 5);
-      });
+      g.fillStyle(0x2a2a2a, 1).fillRoundedRect(cx - 160, cy - 50, 320, 120, 12);
+      g.lineStyle(6, 0x777777, 1);
+      for (let y = cy - 30; y < cy + 70; y += 24) g.lineBetween(cx - 150, y, cx + 150, y);
+      [-80, 0, 80].forEach((dx) => g.fillStyle(0xb06a3a, 1).fillRoundedRect(cx + dx - 30, cy - 34, 60, 88, 18));
     }
   }
 
@@ -232,7 +246,7 @@ export class ServiceScene extends Phaser.Scene {
       const v = this.stations[st];
       v.count.setText(n > 0 ? `${n} order${n > 1 ? 's' : ''} waiting` : '');
       const lit = next === st;
-      v.frame.setStrokeStyle(lit ? 5 : 3, lit ? COLORS.gold : n > 0 ? 0xb07a3a : 0x2a1a0e);
+      v.frame.setStrokeStyle(lit ? 10 : 6, lit ? COLORS.gold : n > 0 ? 0xb07a3a : 0x2a1a0e);
     });
   }
 
@@ -241,7 +255,7 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   private banner(s: string): void {
-    const t = txt(this, W / 2, 230, s, 40, '#f2c94c', { fontStyle: 'bold', stroke: '#2a1a0e', strokeThickness: 8 })
+    const t = txt(this, W / 2, 460, s, 80, GOLD, { fontFamily: TITLE_FONT, fontStyle: 'bold', stroke: '#2a1a0e', strokeThickness: 14 })
       .setOrigin(0.5).setDepth(800).setScale(0.5).setAlpha(0);
     this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 300, ease: 'Back.easeOut', hold: 1100, yoyo: true, onComplete: () => t.destroy() });
   }
@@ -250,24 +264,38 @@ export class ServiceScene extends Phaser.Scene {
 
   private spawnHunter(): void {
     const s = session.state;
-    const vetChance = Math.min(0.5, 0.1 + (s.day - 1) * 0.1);
-    const type = Math.random() < vetChance ? HUNTER_TYPES.veteran : HUNTER_TYPES.rookie;
-    const monster = Phaser.Utils.Array.GetRandom(monsterPool(MONSTER_LIST, s.day)) as Monster;
-    const armor = Phaser.Utils.Array.GetRandom(ARMOR_COLORS) as number;
-    const weapon = Phaser.Utils.Array.GetRandom(WEAPONS) as string;
+    const back = s.returning.shift();
+    let type: HunterType;
+    let monster: Monster;
+    let armor: ArmorSet;
+    let weapon: Weapon;
+    if (back) {
+      // A hunter carted yesterday comes back for a better meal.
+      type = HUNTER_TYPES[back.typeId];
+      monster = MONSTERS[back.monsterId];
+      armor = ARMOR_BY_ID[back.armorId];
+      weapon = WEAPONS_BY_ID[back.weaponId];
+    } else {
+      const vetChance = Math.min(0.5, 0.1 + (s.day - 1) * 0.1);
+      type = Math.random() < vetChance ? HUNTER_TYPES.veteran : HUNTER_TYPES.rookie;
+      monster = pick(monsterPool(MONSTER_LIST, s.day));
+      armor = pick(ARMOR_SETS.filter((a) => a.minDay <= s.day && (type.id === 'veteran' || a.minDay === 1)));
+      weapon = pick(WEAPONS);
+    }
     const patienceMax = type.patience * 1000 * (hasUpgrade(s, 'lanterns') ? 1.25 : 1);
 
     const view = this.add.container(DOOR.x, DOOR.y).setDepth(10);
     const sprite = drawHunter(this, armor, weapon, type.id === 'veteran');
-    const wish = BUFF_LABELS[monster.wish];
-    const badge = txt(this, -30, -86, wish.icon, 14).setOrigin(0.5);
-    const hearts = txt(this, 6, -86, '', 13, '#e04a3a').setOrigin(0.5);
-    const bubble = txt(this, 0, -112, '', 22).setOrigin(0.5);
-    const hit = this.add.rectangle(0, -38, 50, 84, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
-    view.add([sprite, badge, hearts, bubble, hit]);
+    const need = NEED_LABELS[monster.need];
+    const badge = this.add.circle(-70, -196, 22, 0x2a1a0e, 0.85);
+    const needIcon = icon(this, -70, -196, need.icon, 32, need.tint);
+    const hearts = [0, 1, 2, 3, 4].map((i) => this.add.image(-34 + i * 26, -196, 'heart').setDisplaySize(24, 24).setTint(0xe04a5a));
+    const bubble = this.add.image(0, -250, 'think').setDisplaySize(52, 52).setVisible(false);
+    const hit = this.add.rectangle(0, -84, 110, 180, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+    view.add([sprite, badge, needIcon, ...hearts, bubble, hit]);
 
     const h: Hunter = {
-      id: this.nextId++, name: Phaser.Utils.Array.GetRandom(HUNTER_NAMES) as string, type, monster, armor, weapon,
+      id: this.nextId++, type, monster, armor, weapon,
       patience: patienceMax, patienceMax, state: 'walking', table: -1, timer: 0, view, hearts, bubble, ticket: null,
     };
     hit.on('pointerdown', () => this.clickHunter(h));
@@ -276,6 +304,11 @@ export class ServiceScene extends Phaser.Scene {
     sfx.arrive();
     this.layoutQueue();
     this.drawHearts(h);
+    if (back) this.time.delayedCall(600, () => floatText(this, h.view.x, h.view.y - 290, 'Back after a cart!', '#ffd0a0', 26));
+  }
+
+  private setBubble(h: Hunter, key: string, tint = 0xffffff): void {
+    h.bubble.setTexture(key).setDisplaySize(52, 52).setTint(tint).setVisible(true);
   }
 
   private layoutQueue(): void {
@@ -298,7 +331,7 @@ export class ServiceScene extends Phaser.Scene {
     const table = this.tables.indexOf(null);
     if (table < 0) {
       this.setHint('All tables are taken! Serve someone first.');
-      floatText(this, h.view.x, h.view.y - 120, 'No free table!', '#ffb4a0', 14);
+      floatText(this, h.view.x, h.view.y - 260, 'No free table!', '#ffb4a0', 28);
       return;
     }
     sfx.click();
@@ -314,40 +347,51 @@ export class ServiceScene extends Phaser.Scene {
       onComplete: () => {
         h.state = 'deciding';
         h.timer = 1000;
-        h.bubble.setText('💭');
+        this.setBubble(h, 'think', 0xf7ead0);
       },
     });
-    this.setHint(`${h.name} is reading the menu...`);
+    this.setHint(`The hunter in ${hunterLabel(h.armor.id)} is reading the menu...`);
+  }
+
+  /** Every menu dish the kitchen can make right now, with the buffs it would give. */
+  private menuOptions(): MenuOption[] {
+    const s = session.state;
+    const options: (MenuOption & { ingredients: string[] })[] = [];
+    for (const dish of s.menu) {
+      const ids = dishIngredients(s, dish);
+      if (ids) options.push({ dish, ingredients: ids, buffs: dishBuffs(dish, ids, s.fresh, s.canteenLevel) });
+    }
+    return options;
   }
 
   private placeOrder(h: Hunter): void {
     const s = session.state;
-    const menu = s.menu.map((id) => RECIPES[id]);
-    const recipe = chooseOrder(Math.random, menu, s.stock, h.monster.wish);
-    if (!recipe || !consumeIngredients(s.stock, recipe)) {
-      h.bubble.setText('❓');
-      floatText(this, h.view.x, h.view.y - 120, 'Out of food?!', '#ffb4a0', 14);
+    const choice = chooseOrder(Math.random, this.menuOptions(), h.monster.need) as (MenuOption & { ingredients: string[] }) | null;
+    if (!choice || !consumeIngredients(s.stock, choice.ingredients)) {
+      this.setBubble(h, 'angry', 0xe06a5a);
+      floatText(this, h.view.x, h.view.y - 280, 'Out of food?!', '#ffb4a0', 28);
       this.leave(h, true);
       return;
     }
+    const dish = DISHES[choice.dish];
     h.state = 'waiting';
-    h.bubble.setText(recipe.icon);
-    h.ticket = { recipe, step: 0, grades: [], quality: null, view: this.add.container(TABLE_X[h.table], 86) };
+    this.setBubble(h, dish.icon, dish.tint);
+    h.ticket = { dish: choice.dish, ingredients: choice.ingredients, step: 0, grades: [], quality: null, view: this.add.container(TABLE_X[h.table], RAIL_Y) };
     this.drawTicket(h);
     if (!this.selected) this.select(h);
-    this.setHint(`${h.name} wants ${recipe.name}. Tap the glowing station!`);
+    this.setHint(`${dish.name} for Table ${h.table + 1}. Click the glowing station!`);
   }
 
   private leave(h: Hunter, angry: boolean): void {
     const s = session.state;
     if (angry) {
       sfx.angry();
-      h.bubble.setText('💢');
-      s.reputation -= ANGRY_REP;
-      s.stats.angry++;
-      this.summary.repDelta -= ANGRY_REP;
-      this.summary.angry++;
-      floatText(this, h.view.x, h.view.y - 140, `-${ANGRY_REP}⭐`, '#ff6b5a');
+      this.setBubble(h, 'angry', 0xe06a5a);
+      const lost = addReputation(s, -WALKOUT_REP);
+      s.stats.walkouts++;
+      this.summary.repDelta += lost;
+      this.summary.walkouts++;
+      if (lost) floatText(this, h.view.x, h.view.y - 300, `${lost} reputation`, '#ff6b5a', 28);
     }
     h.ticket?.view.destroy();
     h.ticket = null;
@@ -358,7 +402,7 @@ export class ServiceScene extends Phaser.Scene {
       this.layoutQueue();
     }
     this.hunters = this.hunters.filter((x) => x !== h);
-    h.hearts.setText('');
+    h.hearts.forEach((i) => i.setVisible(false));
     this.tweens.killTweensOf(h.view);
     this.tweens.add({
       targets: h.view, x: DOOR.x, y: DOOR.y, duration: 900, delay: 300, onComplete: () => h.view.destroy(),
@@ -371,14 +415,15 @@ export class ServiceScene extends Phaser.Scene {
   private drawHearts(h: Hunter): void {
     const frac = Math.max(0, h.patience / h.patienceMax);
     const full = Math.ceil(frac * 5);
-    h.hearts.setText('♥'.repeat(full) + '♡'.repeat(5 - full));
-    h.hearts.setAlpha(frac < 0.3 ? 0.5 + 0.5 * Math.abs(Math.sin(this.time.now / 150)) : 1);
+    const blink = frac < 0.3 ? 0.5 + 0.5 * Math.abs(Math.sin(this.time.now / 150)) : 1;
+    h.hearts.forEach((img, i) => img.setAlpha(i < full ? blink : 0.2));
   }
 
   // ---------------------------------------------------------------- tickets
 
   private nextStation(t: Ticket): StationId | null {
-    return t.step < t.recipe.stations.length ? t.recipe.stations[t.step] : null;
+    const stations = DISHES[t.dish].stations;
+    return t.step < stations.length ? stations[t.step] : null;
   }
 
   private waitingTickets(): Ticket[] {
@@ -389,31 +434,36 @@ export class ServiceScene extends Phaser.Scene {
     const t = h.ticket;
     if (!t) return;
     const c = t.view;
+    const dish = DISHES[t.dish];
     c.removeAll(true);
     this.tweens.killTweensOf(c);
-    c.y = 86;
+    c.y = RAIL_Y;
     const ready = t.quality !== null;
     const sel = this.selected === h;
-    const bg = this.add.rectangle(0, 0, 130, 66, ready ? 0xfff1b8 : COLORS.parchment)
-      .setStrokeStyle(sel ? 4 : 2, sel ? COLORS.gold : COLORS.woodDark)
+    const bg = this.add.rectangle(0, 0, 260, 136, ready ? 0xfff1b8 : COLORS.parchment)
+      .setStrokeStyle(sel ? 8 : 4, sel ? COLORS.gold : COLORS.woodDark)
       .setInteractive({ useHandCursor: true });
     bg.on('pointerdown', () => this.clickTicket(h));
     c.add(bg);
-    c.add(this.add.rectangle(0, -33, 10, 10, 0x9aa3a8)); // clip on the rail
-    c.add(txt(this, 0, -19, `${t.recipe.icon} ${t.recipe.name}`, 10, INK, { fontStyle: 'bold' }).setOrigin(0.5));
-    t.recipe.stations.forEach((st, i) => {
-      const x = -48 + i * 30;
+    c.add(this.add.rectangle(0, -68, 20, 20, 0x9aa3a8)); // clip on the rail
+    c.add(icon(this, -106, -38, dish.icon, 36, dish.tint === 0xf2e6c8 ? 0x8a6a4a : dish.tint));
+    c.add(txt(this, -82, -38, dish.name, 22, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
+    const need = NEED_LABELS[h.monster.need];
+    c.add(icon(this, 108, -38, need.icon, 28, need.tint));
+    DISHES[t.dish].stations.forEach((st, i) => {
+      const x = -96 + i * 56;
       const done = i < t.step;
       const current = i === t.step && !ready;
       const fill = done ? Phaser.Display.Color.HexStringToColor(QUALITY_COLORS[t.grades[i]]).color : 0xd9c49a;
-      c.add(this.add.circle(x, 2, 11, fill).setStrokeStyle(current ? 3 : 1, current ? 0xc0392b : COLORS.woodDark));
-      c.add(txt(this, x, 2, STATIONS[st].icon, 11).setOrigin(0.5));
+      c.add(this.add.circle(x, 6, 22, fill).setStrokeStyle(current ? 6 : 2, current ? 0xc0392b : COLORS.woodDark));
+      c.add(icon(this, x, 6, STATIONS[st].icon, 28, 0x3a2414));
     });
+    const next = this.nextStation(t);
     const status = ready
-      ? `READY! ${['Burnt', 'Rare', 'Tasty'][t.quality as number]} • tap`
-      : `Next: ${STATIONS[this.nextStation(t) as StationId].name} [${STATIONS[this.nextStation(t) as StationId].key}]`;
-    c.add(txt(this, 0, 23, status, 10, ready ? '#3e7a2a' : '#6b4a30', { fontStyle: 'bold' }).setOrigin(0.5));
-    if (ready) this.tweens.add({ targets: c, y: 90, duration: 300, yoyo: true, repeat: -1 });
+      ? `READY: ${QUALITY_NAMES[t.quality as number]}. Click to serve`
+      : `Next: ${STATIONS[next as StationId].name} [${STATIONS[next as StationId].key}]`;
+    c.add(txt(this, 0, 48, status, 20, ready ? '#3e7a2a' : INK_SOFT, { fontStyle: 'bold' }).setOrigin(0.5));
+    if (ready) this.tweens.add({ targets: c, y: RAIL_Y + 8, duration: 300, yoyo: true, repeat: -1 });
   }
 
   private select(h: Hunter | null): void {
@@ -440,38 +490,42 @@ export class ServiceScene extends Phaser.Scene {
     const t = h.ticket;
     if (!t || t.quality === null) return;
     const s = session.state;
-    const pay = dishPayment(t.recipe, t.quality, h.patience / h.patienceMax, h.type.tipRate, h.monster.wish);
+    const dish = DISHES[t.dish];
+    const buffs: MealBuffs = dishBuffs(t.dish, t.ingredients, s.fresh, s.canteenLevel, t.quality);
+    const matched = meetsNeed(buffs, h.monster.need);
+    const pay = dishPayment(dish, t.quality, h.patience / h.patienceMax, h.type.tipRate, matched);
     s.zenny += pay.total;
-    s.reputation += pay.reputation;
+    const rep = addReputation(s, pay.reputation);
     s.stats.served++;
     if (t.quality === 2) s.stats.soTasty++;
     this.summary.earned += pay.total;
-    this.summary.repDelta += pay.reputation;
+    this.summary.repDelta += rep;
     this.summary.served.push({
-      name: h.name, typeId: h.type.id, monsterId: h.monster.id, recipeId: t.recipe.id,
-      quality: t.quality, armor: h.armor, weapon: h.weapon,
+      typeId: h.type.id, monsterId: h.monster.id, dishId: t.dish, ingredients: t.ingredients,
+      quality: t.quality, armorId: h.armor.id, weaponId: h.weapon.id,
     });
 
     // plate flies from the ticket to the table
-    const plate = txt(this, t.view.x, t.view.y, t.recipe.icon, 26).setOrigin(0.5).setDepth(30);
-    this.tweens.add({ targets: plate, x: h.view.x, y: SEAT_Y - 4, duration: 350, ease: 'Quad.easeIn', onComplete: () => plate.destroy() });
+    const plate = icon(this, t.view.x, t.view.y, dish.icon, 56, dish.tint === 0xf2e6c8 ? 0xe8d8b8 : dish.tint).setDepth(30);
+    this.tweens.add({ targets: plate, x: h.view.x, y: SEAT_Y - 8, duration: 350, ease: 'Quad.easeIn', onComplete: () => plate.destroy() });
     t.view.destroy();
     h.ticket = null;
     if (this.selected === h) this.selected = null;
 
     sfx.coin();
-    floatText(this, h.view.x, h.view.y - 130, `+${pay.total}z`);
-    if (recipeHasBuff(t.recipe, h.monster.wish)) {
-      this.time.delayedCall(250, () => floatText(this, h.view.x, h.view.y - 105, `${BUFF_LABELS[h.monster.wish].icon} Buff match!`, '#9be36a', 14));
+    floatText(this, h.view.x, h.view.y - 280, `+${pay.total}z`);
+    if (matched) {
+      const need = NEED_LABELS[h.monster.need];
+      this.time.delayedCall(250, () => floatText(this, h.view.x, h.view.y - 230, `${need.name}: just what I needed!`, '#9be36a', 24));
     }
     h.state = 'eating';
     h.timer = 1800;
-    h.bubble.setText(t.quality === 0 ? '🤢' : '😋');
-    h.hearts.setText('');
+    this.setBubble(h, t.quality === 0 ? 'sick' : 'eat', t.quality === 0 ? 0x9ab06a : 0xf2c94c);
+    h.hearts.forEach((i) => i.setVisible(false));
     this.refreshHud();
     this.refreshStations();
     this.autoSelect();
-    this.setHint(`${h.name} heads to hunt ${h.monster.name}. Good luck!`);
+    this.setHint(`Off to hunt ${h.monster.name} in the ${h.monster.locale}. Good luck!`);
   }
 
   // ---------------------------------------------------------------- stations
@@ -488,7 +542,7 @@ export class ServiceScene extends Phaser.Scene {
           ? `That order needs the ${STATIONS[selNext].name} next.`
           : `No order needs the ${STATIONS[st].name} right now.`;
         this.setHint(msg);
-        floatText(this, 140 + STATION_ORDER.indexOf(st) * 256, 400, 'Nothing to cook here', '#ffb4a0', 14);
+        floatText(this, 280 + STATION_ORDER.indexOf(st) * 512, 800, 'Nothing to cook here', '#ffb4a0', 28);
         return;
       }
       this.select(h);
@@ -498,36 +552,44 @@ export class ServiceScene extends Phaser.Scene {
 
   private openMinigame(h: Hunter, st: StationId): void {
     const t = h.ticket as Ticket;
+    const dish = DISHES[t.dish];
     sfx.click();
     const o = this.add.container(0, 0).setDepth(500);
     o.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0).setInteractive());
-    o.add(panel(this, W / 2 - 290, 108, 580, 400));
-    const root = this.add.container(W / 2, 300);
+    o.add(panel(this, W / 2 - 580, 150, 1160, 800, 'paper'));
+    const root = this.add.container(W / 2, 560);
     o.add(root);
-    o.add(txt(this, W / 2, 492, `Table ${h.table + 1}: ${t.recipe.icon} ${t.recipe.name} for ${h.name}`, 13, '#6b4a30').setOrigin(0.5));
+    o.add(txt(this, W / 2, 908, `Table ${h.table + 1}: ${dish.name} for the hunter in ${hunterLabel(h.armor.id)}`, 26, INK_SOFT).setOrigin(0.5));
     this.overlay = o;
 
-    const done = (q: Quality) => this.closeMinigame(h, q);
-    if (st === 'spit') this.minigame = new SpitGame(this, root, done, spitWindow(hasUpgrade(session.state, 'spit')));
-    else if (st === 'grill') this.minigame = new GrillGame(this, root, done);
-    else this.minigame = new BoardGame(this, root, done, Object.keys(t.recipe.ingredients).map((id) => INGREDIENTS[id].icon));
+    const done = (q: Quality) => this.closeMinigame(h, q, st);
+    if (st === 'spit') {
+      playInterlude(MUSIC.spit);
+      this.minigame = new SpitGame(this, root, done, spitWindow(hasUpgrade(session.state, 'spit')));
+    } else if (st === 'grill') {
+      this.minigame = new GrillGame(this, root, done);
+    } else {
+      this.minigame = new BoardGame(this, root, done, t.ingredients.map((id) => INGREDIENTS[id]));
+    }
   }
 
-  private closeMinigame(h: Hunter, q: Quality): void {
+  private closeMinigame(h: Hunter, q: Quality, st: StationId): void {
     this.minigame?.destroy();
     this.minigame = null;
     this.overlay?.destroy();
     this.overlay = null;
+    if (st === 'spit') endInterlude();
     const t = h.ticket;
     if (!t || h.state !== 'waiting') {
-      this.setHint(`${h.name} already left... the dish goes to the Palicos.`);
+      this.setHint('That hunter already left... the dish goes to the kitchen Palicoes.');
       return;
     }
     t.grades.push(q);
     t.step++;
-    if (t.step >= t.recipe.stations.length) {
+    const dish = DISHES[t.dish];
+    if (t.step >= dish.stations.length) {
       t.quality = combineQuality(t.grades);
-      this.setHint(`${t.recipe.name} is ready! Tap the ticket or ${h.name} to serve.`);
+      this.setHint(`${dish.name} is ready! Click the ticket or the hunter to serve.`);
     } else {
       this.setHint(`Now take it to the ${STATIONS[this.nextStation(t) as StationId].name}.`);
     }
@@ -549,11 +611,10 @@ export class ServiceScene extends Phaser.Scene {
     this.tweens.pauseAll();
     this.time.paused = true;
     const p = this.add.container(0, 0).setDepth(900);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0).setInteractive();
-    p.add(dim);
-    p.add(txt(this, W / 2, H / 2 - 40, 'Paused', 48, '#f2c94c', { fontStyle: 'bold' }).setOrigin(0.5));
-    p.add(new Button(this, W / 2, H / 2 + 30, 200, 46, 'Resume', () => this.togglePause(), { fill: COLORS.green, size: 18 }));
-    p.add(new Button(this, W / 2, H / 2 + 90, 200, 40, 'Quit to Title', () => this.scene.start('Title'), { size: 14 }));
+    p.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0).setInteractive());
+    p.add(txt(this, W / 2, H / 2 - 100, 'Paused', 96, GOLD, { fontFamily: TITLE_FONT, fontStyle: 'bold' }).setOrigin(0.5));
+    p.add(new Button(this, W / 2, H / 2 + 40, 400, 88, 'Resume', () => this.togglePause(), { style: 'go', size: 36, icon: 'play' }));
+    p.add(new Button(this, W / 2, H / 2 + 150, 400, 76, 'Quit to Title', () => this.scene.start('Title'), { size: 30 }));
     this.pauseLayer = p;
   }
 
@@ -568,7 +629,7 @@ export class ServiceScene extends Phaser.Scene {
     if (this.arrivalsOpen && this.elapsed >= SHIFT_MS) {
       this.arrivalsOpen = false;
       sfx.gong();
-      this.banner('Last orders! 🔔');
+      this.banner('Last orders!');
       this.setHint('No new hunters. Finish serving everyone inside!');
     }
 
@@ -600,7 +661,7 @@ export class ServiceScene extends Phaser.Scene {
       h.patience -= dt * drain;
       this.drawHearts(h);
       if (h.patience <= 0) {
-        floatText(this, h.view.x, h.view.y - 120, `${h.name} stormed out!`, '#ff6b5a', 13);
+        floatText(this, h.view.x, h.view.y - 260, 'Walked out!', '#ff6b5a', 26);
         this.leave(h, true);
       }
     }
