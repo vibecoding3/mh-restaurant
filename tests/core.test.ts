@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { combineQuality, gradeChop, gradeGrill, gradeSpit, spitWindow } from '../src/core/cooking';
 import {
   buyIngredient, buyUpgrade, chooseOrder, completeDelivery, consumeIngredients, dishIngredients, dishPayment,
-  meetsNeed, pickChefsChoice, portions, rollFresh, rollPrices, sellItem, togglePlatterIngredient,
+  loadFavorite, meetsNeed, pickChefsChoice, portions, rollFresh, rollPrices, saveFavorite, sellItem, togglePlatterIngredient,
 } from '../src/core/economy';
+import { arrivalInterval } from '../src/core/shift';
+import { DEFAULT_SETTINGS, OLD_AUDIO_KEY, SETTINGS_KEY, readSettings } from '../src/ui/settings';
+import { TUTORIAL_STEPS } from '../src/data/tutorial';
 import { dishBuffs, platterBuffs, slotsFor, steakBuffs, tierFor } from '../src/core/platters';
 import { questChance, resolveQuest, rollItem } from '../src/core/quests';
 import { SAVE_KEY, loadGame, saveGame, type KeyValueStorage } from '../src/core/save';
@@ -11,7 +14,7 @@ import { addReputation, advanceDay, isTrialDay, newGame } from '../src/core/stat
 import { DISHES, DISH_LIST } from '../src/data/dishes';
 import { DELIVERY_LIST } from '../src/data/deliveries';
 import { FOOD_SKILL_LIST } from '../src/data/food-skills';
-import { INGREDIENTS, INGREDIENT_LIST } from '../src/data/ingredients';
+import { INGREDIENTS, INGREDIENT_LIST, unlockSource } from '../src/data/ingredients';
 import { MONSTERS, MONSTER_LIST } from '../src/data/monsters';
 import { WEAPONS_BY_ID } from '../src/data/hunters';
 
@@ -257,5 +260,76 @@ describe('save', () => {
     expect(storage.mem.has(SAVE_KEY)).toBe(false);
     storage.setItem(SAVE_KEY, '{not json');
     expect(loadGame(storage).reset).toBe(true);
+  });
+});
+
+describe('v0.3', () => {
+  it('assist widens the spit and grill windows', () => {
+    const w = spitWindow(false, true);
+    expect(w.start).toBeCloseTo(0.56);
+    expect(w.end).toBeCloseTo(0.86);
+    expect(gradeSpit(0.58, spitWindow(false))).toBe(1);
+    expect(gradeSpit(0.58, w)).toBe(2);
+    expect(gradeGrill(0.6)).toBe(1);
+    expect(gradeGrill(0.6, true)).toBe(2);
+    expect(gradeGrill(0.98, true)).toBe(2);
+    expect(gradeGrill(1.05, true)).toBe(0);
+  });
+  it('saves and loads Favorite Platters', () => {
+    const s = newGame(fixed(0.5));
+    expect(s.favorites.meatPlatter).toEqual([null, null, null]);
+    expect(saveFavorite(s, 'meatPlatter', 0)).toBe(true);
+    expect(saveFavorite(s, 'meatPlatter', 3)).toBe(false);
+    s.platters.meatPlatter = [];
+    expect(saveFavorite(s, 'meatPlatter', 1)).toBe(false); // nothing to save
+    expect(loadFavorite(s, 'meatPlatter', 1)).toBe(false);
+    expect(loadFavorite(s, 'meatPlatter', 0)).toBe(true);
+    expect(s.platters.meatPlatter).toEqual(['wyvernThigh', 'aptonothMeat']);
+  });
+  it('loading a favorite drops locked ingredients and trims to the slots', () => {
+    const s = newGame(fixed(0.5));
+    s.favorites.meatPlatter[0] = ['wyvernSkirtSteak', 'wyvernThigh', 'peonTurkey', 'toughMeat', 'aptonothMeat'];
+    loadFavorite(s, 'meatPlatter', 0);
+    expect(s.platters.meatPlatter).toEqual(['wyvernThigh', 'peonTurkey']);
+    s.canteenLevel = 2;
+    s.stock.wyvernSkirtSteak = 1; // stocked, so usable even before the delivery
+    loadFavorite(s, 'meatPlatter', 0);
+    expect(s.platters.meatPlatter).toEqual(['wyvernSkirtSteak', 'wyvernThigh', 'peonTurkey', 'toughMeat']);
+  });
+  it('names where each ingredient comes from', () => {
+    expect(unlockSource(INGREDIENTS.wyvernThigh)).toBe('The Argosy from Day 1');
+    expect(unlockSource(INGREDIENTS.rapscallion)).toBe('Delivery: 4 Herb');
+    expect(unlockSource(INGREDIENTS.samuraiTuna)).toBe('Delivery: 3 Whetfish');
+    expect(unlockSource(INGREDIENTS.wyvernEgg)).toBe('Brought back by hunters');
+  });
+  it('carries audio settings over from v0.2 and sanitizes the rest', () => {
+    const storage = memoryStorage();
+    expect(readSettings(storage)).toEqual(DEFAULT_SETTINGS);
+    storage.setItem(OLD_AUDIO_KEY, JSON.stringify({ muted: true, music: 0.25 }));
+    expect(readSettings(storage)).toEqual({ muted: true, music: 0.25, textScale: 1, assist: false });
+    expect(storage.mem.has(OLD_AUDIO_KEY)).toBe(false);
+    expect(JSON.parse(storage.mem.get(SETTINGS_KEY) as string).music).toBe(0.25);
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ music: 7, textScale: 3, assist: 1 }));
+    expect(readSettings(storage)).toEqual({ muted: false, music: 1, textScale: 1, assist: true });
+    expect(readSettings(null)).toEqual(DEFAULT_SETTINGS);
+  });
+  it('new games start with an empty tutorial and v2 saves are wiped', () => {
+    const s = newGame(fixed(0.5));
+    expect(s.tutorial).toEqual([]);
+    expect(s.version).toBe(3);
+    const storage = memoryStorage();
+    const { favorites: _f, tutorial: _t, ...v2 } = s;
+    storage.setItem(SAVE_KEY, JSON.stringify({ ...v2, version: 2 }));
+    expect(loadGame(storage).reset).toBe(true);
+  });
+  it('the tutorial covers every scene with unique ids', () => {
+    const ids = TUTORIAL_STEPS.map((t) => t.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(TUTORIAL_STEPS.map((t) => t.scene))).toEqual(new Set(['Prep', 'Service', 'Report']));
+  });
+  it('arrivals speed up with the Bell and later days', () => {
+    expect(arrivalInterval(1, false, fixed(0))).toBe(7000);
+    expect(arrivalInterval(1, true, fixed(0))).toBe(5600);
+    expect(arrivalInterval(10, false, fixed(1))).toBeCloseTo(11500 * 0.75);
   });
 });

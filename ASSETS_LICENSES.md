@@ -16,12 +16,14 @@ Icons by **Lorc**, **Delapouite**, **DarkZaitzev**, **Guard13007** and **SeregaC
 | bean.svg | peas | Delapouite |
 | bell.svg | ringing-bell | Lorc |
 | board.svg | cleaver | Delapouite |
+| book.svg | open-book | Lorc |
 | cart.svg | cartwheel | Lorc |
 | celery.svg | leek | Delapouite |
 | check.svg | check-mark | Delapouite |
 | chef.svg | chef-toque | Delapouite |
 | chicken.svg | chicken | Delapouite |
 | clock.svg | hourglass | Lorc |
+| cog.svg | cog | Lorc |
 | coin.svg | two-coins | Delapouite |
 | corn.svg | corn | Delapouite |
 | defense.svg | attached-shield | Delapouite |
@@ -71,6 +73,10 @@ The star, heart and dot shapes are drawn in code (`makeShapeTextures` in `src/ui
 ## UI: Kenney (CC0)
 
 `public/assets/ui/*.png`: panels and buttons from **UI Pack: RPG Expansion** by [Kenney](https://kenney.nl/assets/ui-pack-rpg-expansion), [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). License file: `public/assets/ui/LICENSE-kenney-ui.txt`.
+
+## Pixel art: Kenney (CC0)
+
+`public/assets/pixel/roguelike-indoors.png`: the transparent tilesheet from **Roguelike Indoors** by [Kenney](https://kenney.nl/assets/roguelike-indoors), [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). License file: `public/assets/pixel/roguelike-indoors-License.txt`. Used unchanged for the dining-hall tables, wall maps and trophies, torch, plants, the kitchen counter, cabinets and stove, scaled 4x with nearest-neighbor filtering.
 
 ## Sound effects: Kenney (CC0)
 

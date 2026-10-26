@@ -5,6 +5,8 @@ import { CreditsScene } from './scenes/CreditsScene';
 import { PrepScene } from './scenes/PrepScene';
 import { ServiceScene } from './scenes/ServiceScene';
 import { ReportScene } from './scenes/ReportScene';
+import { SettingsScene } from './scenes/SettingsScene';
+import { BookScene } from './scenes/BookScene';
 import { COLORS, H, W } from './ui/theme';
 
 const game = new Phaser.Game({
@@ -18,7 +20,12 @@ const game = new Phaser.Game({
   fps: { target: 60, limit: 61 },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   disableContextMenu: true,
-  scene: [PreloadScene, TitleScene, CreditsScene, PrepScene, ServiceScene, ReportScene],
+  scene: [PreloadScene, TitleScene, CreditsScene, SettingsScene, BookScene, PrepScene, ServiceScene, ReportScene],
+});
+
+// F toggles fullscreen in every scene. A key press counts as the user gesture browsers require.
+window.addEventListener('keydown', (e) => {
+  if ((e.key === 'f' || e.key === 'F') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) game.scale.toggleFullscreen();
 });
 
 // `?debug` exposes the game object for playtests (e.g. game.loop.actualFps).

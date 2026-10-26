@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Document version** | 0.3 |
+| **Document version** | 0.4 |
 | **Date** | 2026-10-26 |
-| **Game version covered** | 0.2 (canon pass, released) → 0.3 (next) |
+| **Game version covered** | 0.3 (vertical slice, released) → 0.4 (next) |
 | **Genre** | 2D restaurant management / time management |
 | **Platform** | Desktop web browsers, 100% offline. English only. |
 | **Engine** | Phaser 3 + TypeScript + Vite |
@@ -204,6 +204,7 @@ v0.2 implements the pre-made platters, the Chef's Choice Platter and the BBQ Spi
 - **Income:** platter price × quality multiplier + tips (scaled by patience left) + quest bonuses. The base platter price is anchored to *World's* meal cost of **150 z**.
 - **Expenses:** ingredients, kitchen-Palico wages (paid in fish), Smithy upgrades and decor.
 - Target pacing: the player can afford one meaningful upgrade every 1–2 days.
+- **Tuned numbers (v0.3):** Smithy upgrades cost 1000z (Hanging Lanterns), 1800z (Iron Spit Frame), 3000z (Canteen Bell) and 4500z (Extra Table). The Rank Trial needs 170 reputation on Day 5. With about 13 hunters a shift on Day 1 (rising with the day and the Canteen Bell), an average player passes on Day 5 and a sloppy one on Day 6–7. `tests/balance.test.ts` simulates 200 runs per player type and keeps these bands.
 
 ### 4.7 Kitchen staff
 - Astera starts with the **Oven Felyne** and the **Soup Felyne**. More generic kitchen Palicoes (unnamed, as in the Canteen cutscenes) join as the canteen expands.
@@ -332,7 +333,7 @@ mh-restaurant/
   - Each roadmap milestone bumps **MINOR**.
   - Bug fixes on a released version bump **PATCH**.
   - **1.0.0** is the first complete release (M6).
-- **The current version is v0.2** (`0.2.0`).
+- **The current version is v0.3** (`0.3.0`).
 - The single source of truth is `version` in `package.json`. The build injects it (Vite `define`), and it shows on the title screen and in saves.
 - Each release gets a git tag `vX.Y.Z` on `main` and an entry in `CHANGELOG.md`. The GitHub Pages deployment always serves the latest commit on `main`.
 - This design document has its own document version in its header, separate from the game version.
@@ -340,17 +341,20 @@ mh-restaurant/
 ### 9.2 Version history
 | Version | Contents |
 |---|---|
+| **0.3.0** (vertical slice, released) | The Handler's Day 1 tutorial (15 skippable tips, the shift pauses while she talks); Favorite Platter presets; the Ingredient Book with all 15 food skills; a Settings screen (sound, music, Large text, minigame assist, fullscreen, replay tutorial); a first pixel-art pass with Kenney's CC0 *Roguelike Indoors*; the Fruit Ninja style Chopping Board; weapon-free customers; balance from simulation (Rank Trial at 170 reputation, upgrades 1000–4500z); save-schema v3. |
 | **0.2.0** (canon pass, released) | Content is canon *World* throughout: Astera and the Meowscular Chef; the five canon dishes with platters set in morning prep; 26 Canteen ingredients and 15 food skills under *World's* rules; 8 Low Rank monsters; field-item returns; Provisions Manager deliveries; the Canteen level-up after "Flying Sparks: Tobi-Kadachi". Gameplay is low punishment with no game over. Presentation: 1920 × 1080 with a 60 FPS cap, no emoji, free icons, UI, sound and music, a Credits screen, the version on the title screen, and save-schema v2. |
 | **0.1.0** (prototype, released) | Playable greybox core loop: morning prep, service shift, three minigames (Chopping Board, BBQ Spit, Skewer Grill), quest report, upgrades, `localStorage` saves, GitHub Pages deploy. **Known gaps:** the content is placeholder and not yet canon (invented dishes, characters and village; Great Jaggi instead of Great Jagras), the resolution is 960 × 540, and there is no FPS cap or version display. |
 
-### 9.3 Next version: 0.3 (vertical slice)
-- The rest of the MVP (§9.4) on top of v0.2:
-  - a Handler tutorial on Day 1;
-  - balancing from playtests;
-  - Favorite Platter presets for repeated orders;
-  - the Ingredient book.
-- An art pass on the dining hall and stations.
-- Settings: text size, minigame assist and fullscreen.
+### 9.3 Next version: 0.4 (Low Rank complete)
+- The rest of Low Rank (§9.5 M4):
+  - the Soup Pot station and the Soup Felyne;
+  - kitchen staff (Oven Felyne, Soup Felyne, Waiter and Forager roles);
+  - Botanical Research and Grimalkyne trades;
+  - Jagras raids and the Rush Hour event;
+  - hunting parties, VIP regulars and Grimalkyne visitors;
+  - more Low Rank monsters (Paolumu, Legiana, Odogaron, Rathalos, Diablos);
+  - the Low Rank Rank Trial as a special shift.
+- Something to spend Zenny on after the four Smithy upgrades (staff, decor).
 
 ### 9.4 MVP / vertical slice
 - Astera only, Low Rank.
@@ -365,7 +369,7 @@ mh-restaurant/
 | M0 | Pre-production | — | README, GDD, repo scaffold |
 | M1–M2 | Prototype | **0.1** | Greybox core loop (done) |
 | M2.5 | Canon pass | **0.2** | Canon content, 1080p, 60 FPS cap, versioning (done) |
-| M3 | Vertical slice | 0.3 | MVP content (§9.4), first art pass, audio, Handler tutorial |
+| M3 | Vertical slice | **0.3** | MVP content (§9.4), first art pass, audio, Handler tutorial (done) |
 | M4 | Low Rank complete | 0.4 | Soup Pot, staff, Botanical Research, Grimalkyne trades, Jagras raids, LR Rank Trial |
 | M5a | High Rank | 0.5 | Oven / Oven Roast, Gathering Hub festivals, HR monsters |
 | M5b | Master Rank / Seliana | 0.6 | Seliana hub, Grammeowster Chef, drinks, stews and gratins, MR monsters |
@@ -384,7 +388,8 @@ mh-restaurant/
 - ~~Point-and-click or a walking chef?~~ *Decided: point-and-click.*
 - ~~Ingredient slots per Canteen level?~~ *Decided: 2, then 4 after "Flying Sparks: Tobi-Kadachi" (monsterhunterwiki.org). The later levels (6?) still need checking.*
 - ~~Food skills in the quest simulation?~~ *Decided: every group skill has a one-line effect in `src/data/food-skills.ts`. With 2 or 4 slots, Low Rank reaches each group's first and second skills.*
-- Balance: are 80 reputation by Day 5, and the current hunter arrival rate, the right pace?
+- ~~Balance: are 80 reputation by Day 5, and the current hunter arrival rate, the right pace?~~ *Decided in v0.3: 170 reputation by Day 5 with the current arrival rate, upgrades at 1000–4500z (§4.6). Re-check once staff and events land.*
+- Art: the CC0 pixel props are top-down 3/4 view while characters are side view. Keep this mix, or move to a side-view pack or custom art for v1.0 (§7)?
 
 ---
 

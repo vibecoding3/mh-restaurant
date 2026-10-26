@@ -16,7 +16,7 @@ export class CreditsScene extends Phaser.Scene {
     for (const c of CREDITS) {
       txt(this, 300, y, c.what, 30, INK, { fontStyle: 'bold' });
       txt(this, 300, y + 38, `${c.who}  |  ${c.license}`, 26, INK_SOFT);
-      y += 92;
+      y += 82;
     }
     txt(this, W / 2, 890, 'Characters, dishes, ingredients and monsters are from Monster Hunter: World by Capcom. Fan game, not affiliated.', 24, INK_SOFT)
       .setOrigin(0.5);

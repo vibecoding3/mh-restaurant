@@ -3,8 +3,8 @@ import { GAME_VERSION, TRIAL_DAY, TRIAL_REPUTATION, newGame } from '../core/stat
 import { loadGame, saveGame } from '../core/save';
 import { session } from '../session';
 import { Button, COLORS, CREAM, H, INK, W, drawPalico, drawWoodBg, panel, title, txt } from '../ui/theme';
-import { isMuted, musicVolume, sfx, toggleMute } from '../ui/sfx';
-import { MUSIC, cycleMusicVolume, playMusic } from '../ui/music';
+import { isMuted, sfx, toggleMute } from '../ui/sfx';
+import { MUSIC, playMusic } from '../ui/music';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -59,11 +59,10 @@ export class TitleScene extends Phaser.Scene {
     const muteBtn: Button = new Button(this, 110, 1020, 160, 64, '', () => {
       muteBtn.setIcon(toggleMute() ? 'mute' : 'sound');
     }, { icon: isMuted() ? 'mute' : 'sound', size: 30 });
-    const volLabel = () => `Music ${Math.round(musicVolume() * 100)}%`;
-    const volBtn: Button = new Button(this, 330, 1020, 250, 64, volLabel(), () => {
-      cycleMusicVolume();
-      volBtn.setText(volLabel());
-    }, { size: 26 });
+    new Button(this, 340, 1020, 260, 64, 'Settings', () => {
+      sfx.click();
+      this.scene.start('Settings', { from: 'Title' });
+    }, { size: 28, icon: 'cog' });
     new Button(this, W - 150, 1020, 220, 64, 'Credits', () => {
       sfx.click();
       this.scene.start('Credits');

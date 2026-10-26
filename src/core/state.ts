@@ -2,10 +2,12 @@ import type { DishId, PlatterId, Rng } from './types';
 import { rollFresh, rollPrices } from './economy';
 import { INGREDIENT_LIST } from '../data/ingredients';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
+/** Favorite Platter presets per platter. */
+export const FAVORITE_SLOTS = 3;
 export const GAME_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
 export const TRIAL_DAY = 5;
-export const TRIAL_REPUTATION = 80;
+export const TRIAL_REPUTATION = 170;
 
 export interface GameStats {
   served: number;
@@ -33,6 +35,8 @@ export interface GameState {
   menu: DishId[];
   /** Ingredient ids per platter, set in morning prep. */
   platters: Record<PlatterId, string[]>;
+  /** Saved platter presets (World's Favorite Platters), FAVORITE_SLOTS per platter; null = empty. */
+  favorites: Record<PlatterId, (string[] | null)[]>;
   /** 1 = two slots per platter; 2 after "Flying Sparks: Tobi-Kadachi". */
   canteenLevel: number;
   /** Today's fresh ingredients. */
@@ -46,6 +50,8 @@ export interface GameState {
   returning: ReturningHunter[];
   trialPassed: boolean;
   stats: GameStats;
+  /** Handler tutorial tips already shown. */
+  tutorial: string[];
 }
 
 export function newGame(rng: Rng = Math.random): GameState {
@@ -66,6 +72,11 @@ export function newGame(rng: Rng = Math.random): GameState {
       fishPlatter: ['squadSardine', 'jumboWhelk'],
       veggiePlatter: ['magnicelery', 'plumpkin'],
     },
+    favorites: {
+      meatPlatter: Array(FAVORITE_SLOTS).fill(null),
+      fishPlatter: Array(FAVORITE_SLOTS).fill(null),
+      veggiePlatter: Array(FAVORITE_SLOTS).fill(null),
+    },
     canteenLevel: 1,
     fresh: rollFresh(rng, unlocked),
     unlocked,
@@ -75,6 +86,7 @@ export function newGame(rng: Rng = Math.random): GameState {
     returning: [],
     trialPassed: false,
     stats: { served: 0, soTasty: 0, walkouts: 0, questsWon: 0, carted: 0 },
+    tutorial: [],
   };
 }
 

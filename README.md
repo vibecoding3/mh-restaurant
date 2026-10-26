@@ -4,7 +4,7 @@
 
 You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster Hunter: World*. Research Commission hunters drop in before their quests and order canon Canteen meals. Cook them well and they head out with the right buffs and food skills, come back safe, and bring you gathered items. Every character, dish, ingredient, food skill and monster comes from *World*.
 
-> **Status:** v0.2.0, the *World* canon pass. Code-drawn characters, free-licensed icons, UI, sound and music (see [ASSETS_LICENSES.md](ASSETS_LICENSES.md)).
+> **Status:** v0.3.0, the vertical slice: a Handler tutorial, Favorite Platters, an Ingredient Book, a Settings screen and a first pixel-art pass. Code-drawn characters, free-licensed pixel art, icons, UI, sound and music (see [ASSETS_LICENSES.md](ASSETS_LICENSES.md)).
 >
 > **Play it in your browser: https://vibecoding3.github.io/mh-restaurant/**
 >
@@ -14,13 +14,14 @@ You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster
 
 1. **Morning prep.**
    - **The Argosy:** buy ingredients from the Captain. Prices change daily, and three ingredients are fresh each day.
-   - **Set Platters:** pick the ingredients for the Meat, Fish and Veggie Platters.
+   - **Set Platters:** pick the ingredients for the Meat, Fish and Veggie Platters. The boxes `1` `2` `3` save Favorite Platters: click to save or load, right-click to overwrite.
      - Meat gives Attack Up, Fish gives Defense Up and Vegetables give Elemental Res Up.
      - Two ingredients of the same skill group (Courage, Resilience, Vigor, Acumen, Artillery) give a food skill.
      - Fresh ingredients add Health and make the skill more likely to activate.
    - **Menu:** choose which dishes are on today's menu, including the Chef's Choice Platter and the Well-Done Steak.
    - **Delivery requests:** hand items to the Provisions Manager to unlock new ingredients.
    - **Smithy upgrades:** buy canteen improvements from the Second Fleet Master's team.
+   - **Book:** the Ingredient Book lists every ingredient, where to get it, and all 15 food skills.
 2. **Service shift (about 2 min).** Click a hunter at the door to seat them. The icon over their head shows what they need for their quest. Their order appears as a ticket on the rail. Click the glowing station (or press `1` `2` `3`) to cook:
    - **Chopping Board:** the ingredients are tossed up over the board. Hold the mouse button and slash through them before they fall, Fruit Ninja style.
    - **BBQ Spit:** hold the mouse button or `Space` to spin the Raw Meat, and release in the gold for a Well-Done Steak.
@@ -32,7 +33,9 @@ You are the **Meowscular Chef** running the Canteen in **Astera**, from *Monster
    - Carted hunters come back the next day.
    - Completing "Flying Sparks: Tobi-Kadachi" levels up the Canteen to 4 ingredients per platter.
 
-Goal: reach 80 reputation by Day 5 to pass the Commander's Rank Trial. There is no game over. A missed trial can be retried the next day.
+Goal: reach 170 reputation by Day 5 to pass the Commander's Rank Trial. There is no game over. A missed trial can be retried the next day.
+
+On a new game the Handler explains each step the first time it comes up; "Skip tutorial" turns her tips off. **Settings** (title screen or pause menu) has sound, music volume, Large text, a minigame assist with wider timing windows, fullscreen (`F` anywhere) and "Replay tutorial".
 
 Debug: `?shift=20` shortens a shift to 20 seconds, and `?debug` exposes the game object as `window.game`.
 
@@ -44,8 +47,7 @@ Following the [GDD](docs/GDD.md), the Low Rank is polished first, then High Rank
   - the Soup Pot station;
   - kitchen Palicoes who auto-run stations;
   - Botanical Research and Grimalkyne trades for ingredients;
-  - Jagras raids and rush hours;
-  - a Handler tutorial.
+  - Jagras raids and rush hours.
 - **High Rank:**
   - the Oven and Oven Roast;
   - Gathering Hub festivals with the Grand Appreciation Platter;
@@ -80,7 +82,7 @@ Following the [GDD](docs/GDD.md), the Low Rank is polished first, then High Rank
 ```bash
 npm install
 npm run dev      # local dev server
-npm test         # unit tests for the pure game logic (src/core)
+npm test         # unit tests for the game logic, plus the balance simulation
 npm run build    # type-check + production build into dist/
 ```
 
@@ -89,7 +91,7 @@ Code layout follows the GDD:
 - `src/data/` holds the canon content definitions.
 - `src/scenes/` holds the Phaser scenes and minigames.
 - `src/ui/` holds the theme, audio and music helpers.
-- `public/assets/` holds the bundled icons, UI art, sounds, music and fonts.
+- `public/assets/` holds the bundled pixel art, icons, UI art, sounds, music and fonts.
 
 Every push to `main` runs the tests, builds the game and deploys it to GitHub Pages via `.github/workflows/deploy.yml`.
 

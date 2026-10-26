@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import type { Category, DishId, PlatterId } from '../core/types';
 import {
-  buyIngredient, buyUpgrade, completeDelivery, dishIngredients, portions, sellItem, togglePlatterIngredient,
+  buyIngredient, buyUpgrade, completeDelivery, dishIngredients, loadFavorite, portions, saveFavorite, sellItem,
+  togglePlatterIngredient,
 } from '../core/economy';
 import { platterBuffs, slotsFor } from '../core/platters';
 import { TRIAL_DAY, TRIAL_REPUTATION, hasUpgrade, isTrialDay } from '../core/state';
@@ -14,9 +15,12 @@ import { CATEGORY_LABELS, GROUP_LABELS, INGREDIENTS, INGREDIENT_LIST } from '../
 import { NEED_LABELS, TIER_LABELS } from '../data/stations';
 import { UPGRADE_LIST } from '../data/upgrades';
 import { session } from '../session';
-import { Button, CREAM, GOLD, INK, INK_SOFT, badgeIcon, drawWoodBg, floatText, icon, iconText, panel, stars, title, txt } from '../ui/theme';
+import {
+  Button, CREAM, GOLD, INK, INK_SOFT, badgeIcon, drawWoodBg, fitWidth, floatText, icon, iconText, panel, stars, title, txt,
+} from '../ui/theme';
 import { sfx } from '../ui/sfx';
 import { MUSIC, playMusic } from '../ui/music';
+import { HandlerTips } from '../ui/tutorial';
 
 const TABS: Category[] = ['meat', 'fish', 'veg', 'field'];
 const FRESH_TINT = 0x7ac0e8;
@@ -24,6 +28,7 @@ const FRESH_TINT = 0x7ac0e8;
 export class PrepScene extends Phaser.Scene {
   private layer!: Phaser.GameObjects.Container;
   private tab: Category = 'meat';
+  private tips!: HandlerTips;
 
   constructor() {
     super('Prep');
@@ -34,6 +39,8 @@ export class PrepScene extends Phaser.Scene {
     playMusic(MUSIC.town);
     this.layer = this.add.container();
     this.render();
+    this.tips = new HandlerTips(this, () => session.state, { onSeen: () => saveGame(session.state) });
+    for (const id of ['prep-argosy', 'prep-platter', 'prep-fresh', 'prep-menu', 'prep-open']) this.tips.show(id);
   }
 
   private toast(msg: string): void {
@@ -72,7 +79,11 @@ export class PrepScene extends Phaser.Scene {
 
     // Footer
     this.put(new Button(this, 130, 1040, 220, 64, 'Title', () => this.scene.start('Title'), { size: 28, icon: 'save' }));
-    this.put(txt(this, 270, 1040, 'Progress saves automatically.', 24, CREAM).setOrigin(0, 0.5));
+    this.put(new Button(this, 370, 1040, 220, 64, 'Book', () => {
+      sfx.click();
+      this.scene.start('Book');
+    }, { size: 28, icon: 'book' }));
+    this.put(txt(this, 500, 1040, 'Progress saves automatically.', 24, CREAM).setOrigin(0, 0.5));
     this.put(new Button(this, 1660, 1040, 440, 72, 'Open the Canteen!', () => {
       const cookable = s.menu.some((id) => dishIngredients(s, id, () => 0));
       if (!cookable) return this.toast('Nothing on the menu can be cooked. Buy ingredients!');
@@ -196,7 +207,7 @@ export class PrepScene extends Phaser.Scene {
     this.menuToggle(id, x + 34, y + 32);
     this.put(icon(this, x + 80, y + 32, d.icon, 44, d.tint));
     this.put(txt(this, x + 110, y + 32, d.name, 28, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
-    this.put(txt(this, x + 310, y + 32, 'on menu', 20, INK_SOFT).setOrigin(0, 0.5));
+    this.drawPresets(id, x + 340, y + 32);
     this.portionLabel(id, x + w - 18, y + 32);
 
     // slots
@@ -263,6 +274,29 @@ export class PrepScene extends Phaser.Scene {
     }
   }
 
+  /** Favorite Platter presets: click an empty one to save, a filled one to load, right-click to overwrite. */
+  private drawPresets(id: PlatterId, x: number, y: number): void {
+    const s = session.state;
+    s.favorites[id].forEach((fav, i) => {
+      const bx = x + i * 46;
+      const same = !!fav && fav.join() === s.platters[id].join();
+      const box = this.put(this.add.rectangle(bx, y, 42, 42, fav ? (same ? 0x8a5a2a : 0x4a3020) : 0xf8f0dc)
+        .setStrokeStyle(same ? 4 : 2, same ? 0xf2c94c : 0x3e2716).setInteractive({ useHandCursor: true }));
+      this.put(txt(this, bx, y, `${i + 1}`, 24, fav ? CREAM : INK_SOFT, { fontStyle: 'bold' }).setOrigin(0.5));
+      box.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (!fav || p.rightButtonDown()) {
+          if (!saveFavorite(s, id, i)) return this.toast('Put ingredients on the platter first.');
+          sfx.tasty();
+          floatText(this, bx, y - 30, `Saved to ${i + 1}`, GOLD, 26);
+        } else {
+          loadFavorite(s, id, i);
+          sfx.click();
+        }
+        this.refresh();
+      });
+    });
+  }
+
   // ------------------------------------------------------------- Smithy, deliveries, Handler
 
   private drawSmithy(): void {
@@ -276,7 +310,7 @@ export class PrepScene extends Phaser.Scene {
       const owned = hasUpgrade(s, u.id);
       this.put(icon(this, X + 46, y, u.icon, 44, 0x8a5a2a));
       this.put(txt(this, X + 80, y - 14, u.name, 25, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
-      this.put(txt(this, X + 80, y + 14, u.description, 19, INK_SOFT).setOrigin(0, 0.5));
+      this.put(fitWidth(txt(this, X + 80, y + 14, u.description, 19, INK_SOFT).setOrigin(0, 0.5), 330));
       const b = this.put(new Button(this, X + 490, y, 140, 50, owned ? 'Built' : `${u.cost}z`, () => {
         if (buyUpgrade(s, u.id)) {
           sfx.coin();
@@ -292,7 +326,7 @@ export class PrepScene extends Phaser.Scene {
     const X = 1324;
     this.put(panel(this, X, 482, 572, 290, 'paper'));
     this.put(iconText(this, X + 24, 524, 'scroll', 'Delivery Requests', 34, INK, 0x6b4a30));
-    this.put(txt(this, X + 24, 554, `The ${CAST.provisions} unlocks new ingredients.`, 22, INK_SOFT));
+    this.put(fitWidth(txt(this, X + 24, 552, `The ${CAST.provisions} unlocks new ingredients.`, 20, INK_SOFT), 524));
     DELIVERY_LIST.forEach((d, i) => {
       const y = 604 + i * 58;
       const item = INGREDIENTS[d.item];
@@ -300,7 +334,7 @@ export class PrepScene extends Phaser.Scene {
       const have = s.stock[d.item] ?? 0;
       this.put(badgeIcon(this, X + 46, y, item.icon, 44, item.tint));
       this.put(txt(this, X + 76, y - 12, `${d.qty} ${item.name}  (have ${have})`, 23, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
-      this.put(txt(this, X + 76, y + 14, d.unlocks.map((u) => INGREDIENTS[u].name).join(', '), 17, INK_SOFT).setOrigin(0, 0.5));
+      this.put(fitWidth(txt(this, X + 76, y + 14, d.unlocks.map((u) => INGREDIENTS[u].name).join(', '), 17, INK_SOFT).setOrigin(0, 0.5), 354));
       const b = this.put(new Button(this, X + 500, y, 120, 48, done ? 'Done' : 'Deliver', () => {
         if (completeDelivery(s, d.id)) {
           sfx.tasty();

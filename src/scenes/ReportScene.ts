@@ -16,6 +16,7 @@ import {
 } from '../ui/theme';
 import { sfx } from '../ui/sfx';
 import { MUSIC, playMusic } from '../ui/music';
+import { HandlerTips } from '../ui/tutorial';
 
 const COLS = 6;
 /** Quality colors readable on parchment. */
@@ -37,6 +38,7 @@ export class ReportScene extends Phaser.Scene {
   private cards: { back: Phaser.GameObjects.Container; front: Phaser.GameObjects.Container }[] = [];
   private revealed = 0;
   private footer!: Phaser.GameObjects.Container;
+  private tips!: HandlerTips;
 
   constructor() {
     super('Report');
@@ -94,6 +96,7 @@ export class ReportScene extends Phaser.Scene {
 
     this.cards = [];
     this.revealed = 0;
+    this.tips = new HandlerTips(this, () => session.state, { onSeen: () => saveGame(session.state) });
     if (rows.length === 0) {
       txt(this, W / 2, 440, 'No hunters went out on a quest today...\nSeat hunters quickly and serve them before their hearts run out!', 36, CREAM, { align: 'center' })
         .setOrigin(0.5);
@@ -216,6 +219,10 @@ export class ReportScene extends Phaser.Scene {
   }
 
   private showFooter(): void {
-    if (this.footer.alpha === 0) this.tweens.add({ targets: this.footer, alpha: 1, duration: 300 });
+    if (this.footer.alpha !== 0) return;
+    this.tweens.add({ targets: this.footer, alpha: 1, duration: 300 });
+    if (this.cards.length) this.tips.show('rep-cards');
+    this.tips.show('rep-items');
+    this.tips.show('rep-trial');
   }
 }

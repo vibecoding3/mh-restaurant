@@ -5,6 +5,7 @@ import { combineQuality, spitWindow } from '../core/cooking';
 import { dishBuffs } from '../core/platters';
 import { monsterPool } from '../core/quests';
 import { addReputation, hasUpgrade } from '../core/state';
+import { FIRST_ARRIVAL_MS, SHIFT_MS as DEFAULT_SHIFT_MS, arrivalInterval, veteranChance } from '../core/shift';
 import { ARMOR_BY_ID, ARMOR_SETS, HUNTER_TYPES, WEAPONS, WEAPONS_BY_ID, hunterLabel } from '../data/hunters';
 import { INGREDIENTS } from '../data/ingredients';
 import { MONSTERS, MONSTER_LIST } from '../data/monsters';
@@ -12,18 +13,21 @@ import { DISHES } from '../data/dishes';
 import { NEED_LABELS, QUALITY_COLORS, QUALITY_NAMES, STATIONS, STATION_ORDER } from '../data/stations';
 import { session, type ShiftSummary } from '../session';
 import {
-  Button, COLORS, CREAM, GOLD, H, INK, INK_SOFT, TITLE_FONT, W, drawHunter, drawPalico, floatText, icon, iconText,
+  Button, COLORS, CREAM, GOLD, H, INK, INK_SOFT, TITLE_FONT, W, drawHunter, drawPalico, fitWidth, floatText, icon, iconText,
   panel, txt,
 } from '../ui/theme';
 import { isMuted, sfx, toggleMute } from '../ui/sfx';
 import { MUSIC, endInterlude, playInterlude, playMusic } from '../ui/music';
+import { settings } from '../ui/settings';
+import { PROPS, T, prop, strip } from '../ui/pixel';
+import { HandlerTips } from '../ui/tutorial';
 import type { Minigame } from './minigames/base';
 import { SpitGame } from './minigames/SpitGame';
 import { BoardGame } from './minigames/BoardGame';
 import { GrillGame } from './minigames/GrillGame';
 
 // `?shift=<seconds>` shortens the shift for quick playtests.
-const SHIFT_MS = (Number(new URLSearchParams(location.search).get('shift')) || 120) * 1000;
+const SHIFT_MS = Number(new URLSearchParams(location.search).get('shift')) * 1000 || DEFAULT_SHIFT_MS;
 const TABLE_X = [500, 780, 1060, 1340, 1620];
 const SEAT_Y = 504;
 const QUEUE_SLOTS = [{ x: 132, y: 600 }, { x: 256, y: 652 }, { x: 372, y: 600 }];
@@ -78,6 +82,10 @@ export class ServiceScene extends Phaser.Scene {
   private minigame: Minigame | null = null;
   private overlay: Phaser.GameObjects.Container | null = null;
   private pauseLayer: Phaser.GameObjects.Container | null = null;
+  /** True while the pause menu or a Handler tip is up: the shift clock, tweens and timers stop. */
+  private paused = false;
+  private tips!: HandlerTips;
+  private muteBtn!: Button;
   private nextId = 1;
   private elapsed = 0;
   private spawnTimer = 0;
@@ -99,8 +107,9 @@ export class ServiceScene extends Phaser.Scene {
     this.minigame = null;
     this.overlay = null;
     this.pauseLayer = null;
+    this.paused = false;
     this.elapsed = 0;
-    this.spawnTimer = 1200;
+    this.spawnTimer = FIRST_ARRIVAL_MS;
     this.arrivalsOpen = true;
     this.ended = false;
     this.tables = Array(hasUpgrade(s, 'table') ? 5 : 4).fill(null);
@@ -111,12 +120,16 @@ export class ServiceScene extends Phaser.Scene {
     this.drawHud();
     this.drawStations();
     playMusic(MUSIC.service);
+    this.tips = new HandlerTips(this, () => session.state, { onActive: (on) => this.setPaused(on) });
 
     const kb = this.input.keyboard;
     (['ONE', 'TWO', 'THREE'] as const).forEach((key, i) => kb?.on(`keydown-${key}`, () => this.useStation(STATION_ORDER[i])));
     kb?.on('keydown-ESC', () => this.togglePause());
+    // Back from Settings: the mute setting may have changed.
+    this.events.on('wake', () => this.muteBtn.setIcon(isMuted() ? 'mute' : 'sound'));
     this.events.once('shutdown', () => {
       kb?.removeAllListeners();
+      this.events.off('wake');
       this.minigame?.destroy();
     });
 
@@ -144,8 +157,17 @@ export class ServiceScene extends Phaser.Scene {
     g.fillStyle(0xa83a2a, 1).fillRect(40, 268, 340, 64);
     g.fillStyle(0x7a2a1e, 1).fillTriangle(40, 332, 80, 332, 40, 360).fillTriangle(380, 332, 340, 332, 380, 360);
     txt(this, 210, 300, "Hunter's Canteen", 32, CREAM, { fontFamily: TITLE_FONT, fontStyle: 'bold' }).setOrigin(0.5);
+    // Wall decor between the tables: Commission maps, trophies and torches.
+    const wallY = 268;
+    prop(this, 640 - T, wallY, PROPS.map);
+    prop(this, 920 - T / 2, wallY, PROPS.shieldRound);
+    prop(this, 1200 - T, wallY, PROPS.map);
+    prop(this, 1480 - T / 2, wallY, PROPS.shieldKite);
+    prop(this, 1760 - T / 2, wallY, PROPS.torch);
+    prop(this, 1790, 560, PROPS.plant);
+    prop(this, 1720, 576, PROPS.pot);
     if (hasUpgrade(session.state, 'lanterns')) {
-      [600, 1000, 1400, 1800].forEach((x) => {
+      TABLE_X.forEach((x) => {
         g.fillStyle(0xf6c445, 0.18).fillCircle(x, 300, 64);
         g.fillStyle(0x3e2716, 1).fillRect(x - 2, 248, 4, 24);
         g.fillStyle(0xd9542a, 1).fillRoundedRect(x - 18, 272, 36, 48, 12);
@@ -153,19 +175,17 @@ export class ServiceScene extends Phaser.Scene {
     }
     // tables (drawn above seated hunters via depth)
     this.tables.forEach((_, i) => {
-      const t = this.add.graphics().setDepth(20);
       const x = TABLE_X[i];
-      t.fillStyle(0x000000, 0.25).fillEllipse(x, 600, 220, 44);
-      t.fillStyle(0x8a5a34, 1).fillRoundedRect(x - 104, 500, 208, 44, 12);
-      t.fillStyle(0x6a4226, 1).fillRect(x - 88, 544, 20, 48).fillRect(x + 68, 544, 20, 48);
-      txt(this, x, 522, `Table ${i + 1}`, 22, CREAM).setOrigin(0.5).setDepth(21);
+      this.add.ellipse(x, 536, 220, 30, 0x000000, 0.25).setDepth(19);
+      prop(this, x - T * 1.5, 456, PROPS.table).setDepth(20);
+      txt(this, x, 486, `Table ${i + 1}`, 22, CREAM, { stroke: '#3a2414', strokeThickness: 4 }).setOrigin(0.5).setDepth(21);
     });
     // ticket rail
     g.fillStyle(0x3e2716, 1).fillRect(0, 80, W, 164);
     g.fillStyle(0x9aa3a8, 1).fillRect(0, 96, W, 8);
-    // kitchen counter
-    g.fillStyle(0x3e2716, 1).fillRect(0, 672, W, H - 672);
-    g.fillStyle(0x9a6a3e, 1).fillRect(0, 672, W, 16);
+    // kitchen: a long counter in front of the stations
+    g.fillStyle(0x3e2716, 1).fillRect(0, 688, W, H - 688);
+    strip(this, 0, 644, W, PROPS.counterTop[0]);
   }
 
   private drawHud(): void {
@@ -179,7 +199,7 @@ export class ServiceScene extends Phaser.Scene {
     const money = iconText(this, 720, 40, 'coin', '', 34, CREAM, 0xf2c94c);
     const rep = iconText(this, 960, 40, 'star', '', 34, CREAM, 0xf2c94c);
     this.hud = { clock, clockBar, money, rep };
-    const muteBtn: Button = new Button(this, 1740, 40, 100, 56, '', () => muteBtn.setIcon(toggleMute() ? 'mute' : 'sound'),
+    this.muteBtn = new Button(this, 1740, 40, 100, 56, '', () => this.muteBtn.setIcon(toggleMute() ? 'mute' : 'sound'),
       { icon: isMuted() ? 'mute' : 'sound', size: 28 });
     new Button(this, 1856, 40, 100, 56, '', () => this.togglePause(), { icon: 'pause', size: 28 });
     // rail label
@@ -210,7 +230,7 @@ export class ServiceScene extends Phaser.Scene {
       this.add.rectangle(x + 36, 744, 44, 44, 0x2a1a0e).setStrokeStyle(2, 0x9a6a3e);
       txt(this, x + 36, 744, info.key, 30, GOLD, { fontStyle: 'bold' }).setOrigin(0.5);
       iconText(this, x + 70, 744, info.icon, info.name, 34, CREAM, 0xf7ead0);
-      const count = txt(this, x + 456, 1010, '', 26, GOLD, { fontStyle: 'bold' }).setOrigin(1, 0.5);
+      const count = txt(this, x + 456, 790, '', 24, GOLD, { fontStyle: 'bold' }).setOrigin(1, 0.5);
       this.stations[st] = { frame, count };
     });
     drawPalico(this, 1760, 1040).setScale(0.95);
@@ -219,23 +239,35 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   private drawStationArt(g: Phaser.GameObjects.Graphics, st: StationId, cx: number, cy: number): void {
+    const base = cy + 80; // top of the cabinets along the bottom of the station
     if (st === 'board') {
-      g.fillStyle(0xc89a62, 1).fillRoundedRect(cx - 160, cy - 60, 320, 140, 20);
-      g.fillStyle(0x9aa3a8, 1).fillRect(cx + 20, cy - 20, 120, 40);
-      g.fillStyle(0x3e2716, 1).fillRect(cx - 40, cy - 12, 60, 24);
-      icon(this, cx - 100, cy + 20, 'herb', 64, 0x6ab04a);
-      icon(this, cx - 30, cy + 40, 'meat', 64, 0xc0563a);
+      strip(this, cx - T * 3.5, base, T * 7, PROPS.cabinets[0]);
+      g.fillStyle(0xc89a62, 1).fillRoundedRect(cx - 150, cy - 30, 300, 100, 16);
+      g.fillStyle(0xa87a42, 1).fillRect(cx - 150, cy + 56, 300, 14);
+      g.fillStyle(0x9aa3a8, 1).fillRect(cx + 30, cy - 4, 100, 32);
+      g.fillStyle(0x3e2716, 1).fillRect(cx - 20, cy + 2, 50, 20);
+      icon(this, cx - 90, cy + 16, 'herb', 56, 0x6ab04a);
+      icon(this, cx - 30, cy + 32, 'meat', 56, 0xc0563a);
     } else if (st === 'spit') {
+      // No pack has a spit: the stand and fire stay drawn in code, over a stone fire pit.
+      g.fillStyle(0x4a4a4a, 1).fillRoundedRect(cx - 170, base, 340, T, 10);
+      g.fillStyle(0x5e5e5e, 1);
+      for (let x = cx - 160; x < cx + 160; x += 54) g.fillRoundedRect(x, base + 8, 46, 22, 6).fillRoundedRect(x + 26, base + 36, 46, 22, 6);
       g.fillStyle(0x2a1a0e, 1).fillRect(cx - 140, cy - 60, 16, 140).fillRect(cx + 124, cy - 60, 16, 140);
       g.fillStyle(0x9aa3a8, 1).fillRect(cx - 140, cy - 44, 280, 8);
       g.fillStyle(0xa0582a, 1).fillEllipse(cx, cy - 40, 140, 80);
-      g.fillStyle(0xe8542a, 1).fillTriangle(cx - 80, cy + 80, cx - 40, cy + 80, cx - 60, cy + 20)
-        .fillTriangle(cx - 20, cy + 80, cx + 20, cy + 80, cx, cy + 10).fillTriangle(cx + 40, cy + 80, cx + 80, cy + 80, cx + 60, cy + 24);
+      g.fillStyle(0xe8542a, 1).fillTriangle(cx - 80, base, cx - 40, base, cx - 60, cy + 20)
+        .fillTriangle(cx - 20, base, cx + 20, base, cx, cy + 10).fillTriangle(cx + 40, base, cx + 80, base, cx + 60, cy + 24);
     } else {
-      g.fillStyle(0x2a2a2a, 1).fillRoundedRect(cx - 160, cy - 50, 320, 120, 12);
-      g.lineStyle(6, 0x777777, 1);
-      for (let y = cy - 30; y < cy + 70; y += 24) g.lineBetween(cx - 150, y, cx + 150, y);
-      [-80, 0, 80].forEach((dx) => g.fillStyle(0xb06a3a, 1).fillRoundedRect(cx + dx - 30, cy - 34, 60, 88, 18));
+      // A stove between two cabinets, with the cuts on its grill plate.
+      strip(this, cx - T * 3.5, base, T * 2, PROPS.cabinets[0]);
+      strip(this, cx + T * 1.5, base, T * 2, PROPS.cabinets[0]);
+      prop(this, cx - T, base - T, PROPS.stove);
+      const plate = this.add.graphics(); // above the stove
+      plate.fillStyle(0x2a2a2a, 1).fillRoundedRect(cx - 150, cy - 40, 300, 84, 10);
+      plate.lineStyle(5, 0x777777, 1);
+      for (let y = cy - 24; y < cy + 40; y += 20) plate.lineBetween(cx - 140, y, cx + 140, y);
+      [-80, 0, 80].forEach((dx) => plate.fillStyle(0xb06a3a, 1).fillRoundedRect(cx + dx - 26, cy - 30, 52, 64, 16));
     }
   }
 
@@ -276,8 +308,7 @@ export class ServiceScene extends Phaser.Scene {
       armor = ARMOR_BY_ID[back.armorId];
       weapon = WEAPONS_BY_ID[back.weaponId];
     } else {
-      const vetChance = Math.min(0.5, 0.1 + (s.day - 1) * 0.1);
-      type = Math.random() < vetChance ? HUNTER_TYPES.veteran : HUNTER_TYPES.rookie;
+      type = Math.random() < veteranChance(s.day) ? HUNTER_TYPES.veteran : HUNTER_TYPES.rookie;
       monster = pick(monsterPool(MONSTER_LIST, s.day));
       armor = pick(ARMOR_SETS.filter((a) => a.minDay <= s.day && (type.id === 'veteran' || a.minDay === 1)));
       weapon = pick(WEAPONS);
@@ -305,6 +336,7 @@ export class ServiceScene extends Phaser.Scene {
     this.layoutQueue();
     this.drawHearts(h);
     if (back) this.time.delayedCall(600, () => floatText(this, h.view.x, h.view.y - 290, 'Back after a cart!', '#ffd0a0', 26));
+    this.tips.show('svc-seat');
   }
 
   private setBubble(h: Hunter, key: string, tint = 0xffffff): void {
@@ -348,6 +380,7 @@ export class ServiceScene extends Phaser.Scene {
         h.state = 'deciding';
         h.timer = 1000;
         this.setBubble(h, 'think', 0xf7ead0);
+        this.tips.show('svc-need', { x: h.view.x - 110, y: h.view.y - 280, w: 220, h: 290 });
       },
     });
     this.setHint(`The hunter in ${hunterLabel(h.armor.id)} is reading the menu...`);
@@ -380,6 +413,7 @@ export class ServiceScene extends Phaser.Scene {
     this.drawTicket(h);
     if (!this.selected) this.select(h);
     this.setHint(`${dish.name} for Table ${h.table + 1}. Click the glowing station!`);
+    this.tips.show('svc-ticket', { x: TABLE_X[h.table] - 130, y: RAIL_Y - 78, w: 260, h: 146 });
   }
 
   private leave(h: Hunter, angry: boolean): void {
@@ -447,7 +481,7 @@ export class ServiceScene extends Phaser.Scene {
     c.add(bg);
     c.add(this.add.rectangle(0, -68, 20, 20, 0x9aa3a8)); // clip on the rail
     c.add(icon(this, -106, -38, dish.icon, 36, dish.tint === 0xf2e6c8 ? 0x8a6a4a : dish.tint));
-    c.add(txt(this, -82, -38, dish.name, 22, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5));
+    c.add(fitWidth(txt(this, -82, -38, dish.name, 22, INK, { fontStyle: 'bold' }).setOrigin(0, 0.5), 170));
     const need = NEED_LABELS[h.monster.need];
     c.add(icon(this, 108, -38, need.icon, 28, need.tint));
     DISHES[t.dish].stations.forEach((st, i) => {
@@ -462,7 +496,7 @@ export class ServiceScene extends Phaser.Scene {
     const status = ready
       ? `READY: ${QUALITY_NAMES[t.quality as number]}. Click to serve`
       : `Next: ${STATIONS[next as StationId].name} [${STATIONS[next as StationId].key}]`;
-    c.add(txt(this, 0, 48, status, 20, ready ? '#3e7a2a' : INK_SOFT, { fontStyle: 'bold' }).setOrigin(0.5));
+    c.add(fitWidth(txt(this, 0, 48, status, 20, ready ? '#3e7a2a' : INK_SOFT, { fontStyle: 'bold' }).setOrigin(0.5), 244));
     if (ready) this.tweens.add({ targets: c, y: RAIL_Y + 8, duration: 300, yoyo: true, repeat: -1 });
   }
 
@@ -507,7 +541,7 @@ export class ServiceScene extends Phaser.Scene {
 
     // plate flies from the ticket to the table
     const plate = icon(this, t.view.x, t.view.y, dish.icon, 56, dish.tint === 0xf2e6c8 ? 0xe8d8b8 : dish.tint).setDepth(30);
-    this.tweens.add({ targets: plate, x: h.view.x, y: SEAT_Y - 8, duration: 350, ease: 'Quad.easeIn', onComplete: () => plate.destroy() });
+    this.tweens.add({ targets: plate, x: h.view.x, y: SEAT_Y - 36, duration: 350, ease: 'Quad.easeIn', onComplete: () => plate.destroy() });
     t.view.destroy();
     h.ticket = null;
     if (this.selected === h) this.selected = null;
@@ -532,6 +566,8 @@ export class ServiceScene extends Phaser.Scene {
 
   private useStation(st: StationId): void {
     if (this.overlay || this.pauseLayer || this.ended) return;
+    // A station key also answers the Handler's tip about the ticket.
+    if (this.tips.active) this.tips.next();
     let h: Hunter | undefined;
     const selNext = this.selected?.ticket ? this.nextStation(this.selected.ticket) : null;
     if (selNext === st && this.selected) h = this.selected;
@@ -563,14 +599,16 @@ export class ServiceScene extends Phaser.Scene {
     this.overlay = o;
 
     const done = (q: Quality) => this.closeMinigame(h, q, st);
+    const assist = settings().assist;
     if (st === 'spit') {
       playInterlude(MUSIC.spit);
-      this.minigame = new SpitGame(this, root, done, spitWindow(hasUpgrade(session.state, 'spit')));
+      this.minigame = new SpitGame(this, root, done, spitWindow(hasUpgrade(session.state, 'spit'), assist));
     } else if (st === 'grill') {
-      this.minigame = new GrillGame(this, root, done);
+      this.minigame = new GrillGame(this, root, done, assist);
     } else {
-      this.minigame = new BoardGame(this, root, done, t.ingredients.map((id) => INGREDIENTS[id]));
+      this.minigame = new BoardGame(this, root, done, t.ingredients.map((id) => INGREDIENTS[id]), { assist });
     }
+    this.tips.show(`svc-${st}`);
   }
 
   private closeMinigame(h: Hunter, q: Quality, st: StationId): void {
@@ -590,6 +628,7 @@ export class ServiceScene extends Phaser.Scene {
     if (t.step >= dish.stations.length) {
       t.quality = combineQuality(t.grades);
       this.setHint(`${dish.name} is ready! Click the ticket or the hunter to serve.`);
+      this.tips.show('svc-serve', { x: t.view.x - 130, y: RAIL_Y - 78, w: 260, h: 146 });
     } else {
       this.setHint(`Now take it to the ${STATIONS[this.nextStation(t) as StationId].name}.`);
     }
@@ -599,29 +638,41 @@ export class ServiceScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- pause
 
+  /** Stops or restarts the shift: clock, hunters' patience, tweens and timers. */
+  private setPaused(on: boolean): void {
+    if (this.paused === on) return;
+    this.paused = on;
+    if (on) this.tweens.pauseAll();
+    else this.tweens.resumeAll();
+    this.time.paused = on;
+  }
+
   private togglePause(): void {
-    if (this.ended) return;
+    if (this.ended || this.tips.active) return;
     if (this.pauseLayer) {
       this.pauseLayer.destroy();
       this.pauseLayer = null;
-      this.tweens.resumeAll();
-      this.time.paused = false;
+      this.setPaused(false);
       return;
     }
-    this.tweens.pauseAll();
-    this.time.paused = true;
+    this.setPaused(true);
     const p = this.add.container(0, 0).setDepth(900);
     p.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0).setInteractive());
-    p.add(txt(this, W / 2, H / 2 - 100, 'Paused', 96, GOLD, { fontFamily: TITLE_FONT, fontStyle: 'bold' }).setOrigin(0.5));
-    p.add(new Button(this, W / 2, H / 2 + 40, 400, 88, 'Resume', () => this.togglePause(), { style: 'go', size: 36, icon: 'play' }));
-    p.add(new Button(this, W / 2, H / 2 + 150, 400, 76, 'Quit to Title', () => this.scene.start('Title'), { size: 30 }));
+    p.add(txt(this, W / 2, H / 2 - 160, 'Paused', 96, GOLD, { fontFamily: TITLE_FONT, fontStyle: 'bold' }).setOrigin(0.5));
+    p.add(new Button(this, W / 2, H / 2 - 20, 400, 88, 'Resume', () => this.togglePause(), { style: 'go', size: 36, icon: 'play' }));
+    p.add(new Button(this, W / 2, H / 2 + 90, 400, 76, 'Settings', () => {
+      sfx.click();
+      this.scene.launch('Settings', { from: 'Service' });
+      this.scene.sleep();
+    }, { size: 30, icon: 'cog' }));
+    p.add(new Button(this, W / 2, H / 2 + 190, 400, 76, 'Quit to Title', () => this.scene.start('Title'), { size: 30 }));
     this.pauseLayer = p;
   }
 
   // ---------------------------------------------------------------- loop
 
   update(_time: number, delta: number): void {
-    if (this.pauseLayer || this.ended) return;
+    if (this.paused || this.ended) return;
     const dt = Math.min(delta, 100);
     this.minigame?.update(dt);
 
@@ -639,8 +690,7 @@ export class ServiceScene extends Phaser.Scene {
         if (this.queue.length < QUEUE_SLOTS.length) {
           this.spawnHunter();
           const s = session.state;
-          const speed = (hasUpgrade(s, 'bell') ? 0.8 : 1) * Math.max(0.75, 1 - (s.day - 1) * 0.05);
-          this.spawnTimer = Phaser.Math.Between(7000, 11500) * speed;
+          this.spawnTimer = arrivalInterval(s.day, hasUpgrade(s, 'bell'), Math.random);
         } else {
           this.spawnTimer = 3000;
         }

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { ArmorSet } from '../core/types';
+import { settings } from './settings';
 
 export const W = 1920;
 export const H = 1080;
@@ -25,11 +26,21 @@ export const GOLD = '#f2c94c';
 export const FONT = '"Alegreya Sans", "Segoe UI", system-ui, sans-serif';
 export const TITLE_FONT = 'Cinzel, Georgia, serif';
 
+/** Body text up to this size grows with the Large text setting; titles and banners stay as they are. */
+const BODY_MAX = 28;
+
 export function txt(
   scene: Phaser.Scene, x: number, y: number, s: string, size = 26, color = INK,
   style: Phaser.Types.GameObjects.Text.TextStyle = {},
 ): Phaser.GameObjects.Text {
-  return scene.add.text(x, y, s, { fontFamily: FONT, fontSize: `${size}px`, color, ...style });
+  const px = size <= BODY_MAX && !style.fontFamily ? Math.round(size * settings().textScale) : size;
+  return scene.add.text(x, y, s, { fontFamily: FONT, fontSize: `${px}px`, color, ...style });
+}
+
+/** Shrinks a text to fit `max` pixels wide, e.g. with Large text on a ticket. */
+export function fitWidth<T extends Phaser.GameObjects.Text>(t: T, max: number): T {
+  if (t.width > max) t.setScale(max / t.width);
+  return t;
 }
 
 export function title(scene: Phaser.Scene, x: number, y: number, s: string, size = 44, color = GOLD): Phaser.GameObjects.Text {

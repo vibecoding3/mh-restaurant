@@ -2,9 +2,10 @@ import Phaser from 'phaser';
 import { CREAM, COLORS, H, W, makeShapeTextures } from '../ui/theme';
 import { SFX_KEYS, initAudio } from '../ui/sfx';
 import { MUSIC, initMusic } from '../ui/music';
+import { PIXEL_FILE, PIXEL_SHEET, TILE } from '../ui/pixel';
 
 export const ICON_KEYS = [
-  'angry', 'anvil', 'attack', 'bean', 'bell', 'board', 'cart', 'celery', 'check', 'chef', 'chicken', 'clock', 'coin',
+  'angry', 'anvil', 'attack', 'bean', 'bell', 'board', 'book', 'cart', 'celery', 'check', 'chef', 'chicken', 'clock', 'cog', 'coin',
   'corn', 'defense', 'drumstick', 'eat', 'egg', 'elemRes', 'fish', 'flatfish', 'fresh', 'grill', 'herb', 'lantern',
   'liver', 'meat', 'mushroom', 'mute', 'octopus', 'onion', 'palico', 'pause', 'paw', 'platter', 'play', 'potato',
   'pumpkin', 'rawmeat', 'save', 'scroll', 'shell', 'ship', 'shrimp', 'sick', 'sound', 'spit', 'stamina', 'steak',
@@ -33,6 +34,7 @@ export class PreloadScene extends Phaser.Scene {
 
     for (const key of ICON_KEYS) this.load.svg(key, `assets/icons/${key}.svg`, { width: 128, height: 128 });
     for (const key of UI_KEYS) this.load.image(key, `assets/ui/${key}.png`);
+    this.load.spritesheet(PIXEL_SHEET, PIXEL_FILE, { frameWidth: TILE, frameHeight: TILE, spacing: 1 });
     for (const key of SFX_KEYS) this.load.audio(`sfx-${key}`, `assets/sfx/${key}.ogg`);
     this.load.audio(MUSIC.town, 'assets/music/town.ogg');
     this.load.audio(MUSIC.service, 'assets/music/service.ogg');
@@ -42,6 +44,8 @@ export class PreloadScene extends Phaser.Scene {
 
   create(): void {
     makeShapeTextures(this);
+    // Pixel art stays crisp when scaled up.
+    this.textures.get(PIXEL_SHEET).setFilter(Phaser.Textures.FilterMode.NEAREST);
     initAudio(this.sound);
     initMusic(this.sound);
     const fonts = ['36px "Alegreya Sans"', 'bold 36px "Alegreya Sans"', 'bold 36px Cinzel'];

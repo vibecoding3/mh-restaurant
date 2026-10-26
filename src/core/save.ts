@@ -71,5 +71,6 @@ export function validate(data: unknown): GameState | null {
   const save = data as Partial<GameState>;
   if (save.version !== SAVE_VERSION) return null;
   if (typeof save.day !== 'number' || typeof save.zenny !== 'number' || !save.stock || !save.platters) return null;
+  if (!save.favorites || !Array.isArray(save.tutorial)) return null;
   return save as GameState;
 }

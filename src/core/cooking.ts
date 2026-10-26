@@ -14,8 +14,12 @@ export interface SpitWindow {
   end: number;
 }
 
-export function spitWindow(tempered: boolean): SpitWindow {
-  return tempered ? { start: 0.56, end: 0.84 } : { start: 0.62, end: 0.8 };
+/** Minigame assist widens the BBQ Spit's gold window by this much on each side. */
+const ASSIST_SPIT = 0.06;
+
+export function spitWindow(tempered: boolean, assist = false): SpitWindow {
+  const w = tempered ? { start: 0.56, end: 0.84 } : { start: 0.62, end: 0.8 };
+  return assist ? { start: w.start - ASSIST_SPIT, end: w.end + ASSIST_SPIT } : w;
 }
 
 /** Grades a BBQ Spit release at a meter position 0..1. */
@@ -25,10 +29,16 @@ export function gradeSpit(meter: number, window: SpitWindow): Quality {
   return 1;
 }
 
-/** Grill doneness of one side of a cut: below 0.65 is rare, 0.65–0.95 golden, beyond is burnt. */
-export function gradeGrill(heat: number): Quality {
-  if (heat > 0.95) return 0;
-  if (heat >= 0.65) return 2;
+/** The grill's golden range of heat; assist widens it to 0.55–1.0. */
+export function grillGolden(assist = false): { start: number; end: number } {
+  return assist ? { start: 0.55, end: 1 } : { start: 0.65, end: 0.95 };
+}
+
+/** Grill doneness of one side of a cut: below the golden range is rare, beyond it is burnt. */
+export function gradeGrill(heat: number, assist = false): Quality {
+  const g = grillGolden(assist);
+  if (heat > g.end) return 0;
+  if (heat >= g.start) return 2;
   return 1;
 }
 

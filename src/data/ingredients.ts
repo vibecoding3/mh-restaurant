@@ -1,4 +1,5 @@
 import type { Ingredient } from '../core/types';
+import { DELIVERY_LIST } from './deliveries';
 
 // Canteen ingredients from Monster Hunter: World (GDD Appendix A.2). Prices are gameplay numbers.
 export const INGREDIENT_LIST: Ingredient[] = [
@@ -52,3 +53,13 @@ export const CATEGORY_LABELS: Record<string, string> = {
 export const GROUP_LABELS: Record<string, string> = {
   courage: 'Courage', resilience: 'Resilience', vigor: 'Vigor', acumen: 'Acumen', artillery: 'Artillery',
 };
+
+/** Where an ingredient comes from, for the Ingredient book. */
+export function unlockSource(ing: Ingredient): string {
+  if (ing.unlock === 'start') return 'The Argosy from Day 1';
+  if (ing.unlock === 'delivery') {
+    const d = DELIVERY_LIST.find((x) => x.unlocks.includes(ing.id));
+    return d ? `Delivery: ${d.qty} ${INGREDIENTS[d.item].name}` : 'Provisions Manager delivery';
+  }
+  return 'Brought back by hunters';
+}

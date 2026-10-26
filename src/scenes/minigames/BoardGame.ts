@@ -10,6 +10,9 @@ const AREA = { x: -500, y: -200, w: 1000, h: 520 };
 const LAUNCH_Y = AREA.y + AREA.h + 50;
 const GRAVITY = 2000; // px/s²
 const RADIUS = 56;
+/** Minigame assist: slower falls and a more forgiving blade. */
+const ASSIST_GRAVITY = 0.8;
+const ASSIST_RADIUS = 1.25;
 /** When each ingredient is tossed (ms); some come in pairs. */
 const SCHEDULE = [300, 1100, 1250, 2100, 2800, 2950];
 const TRAIL_MS = 140;
@@ -52,10 +55,17 @@ export class BoardGame extends BaseMinigame {
   private maskG: Phaser.GameObjects.Graphics;
   private elapsed = 0;
   private missed = 0;
+  private gravity: number;
+  private hitRadius: number;
 
-  constructor(scene: Phaser.Scene, root: Phaser.GameObjects.Container, done: (q: Quality) => void, ingredients: Ingredient[]) {
+  constructor(
+    scene: Phaser.Scene, root: Phaser.GameObjects.Container, done: (q: Quality) => void, ingredients: Ingredient[],
+    opts: { assist?: boolean } = {},
+  ) {
     super(scene, root, done, 'Chopping Board', 'Hold the mouse button and slash through the ingredients before they fall!');
 
+    this.gravity = GRAVITY * (opts.assist ? ASSIST_GRAVITY : 1);
+    this.hitRadius = RADIUS * (opts.assist ? ASSIST_RADIUS : 1);
     root.add(scene.add.rectangle(AREA.x + AREA.w / 2, AREA.y + AREA.h / 2, AREA.w, AREA.h, 0xc89a62).setStrokeStyle(8, COLORS.woodLight));
     const grain = scene.add.graphics().lineStyle(3, 0xb88a52, 0.6);
     for (let y = AREA.y + 40; y < AREA.y + AREA.h; y += 56) grain.lineBetween(AREA.x + 20, y, AREA.x + AREA.w - 20, y + 8);
@@ -89,7 +99,7 @@ export class BoardGame extends BaseMinigame {
     f.y = LAUNCH_Y;
     // Peak somewhere in the upper half of the board, drifting toward the middle.
     const peak = Phaser.Math.Between(AREA.y + 70, AREA.y + 220);
-    f.vy = -Math.sqrt(2 * GRAVITY * (LAUNCH_Y - peak));
+    f.vy = -Math.sqrt(2 * this.gravity * (LAUNCH_Y - peak));
     f.vx = -f.x * 0.35 + Phaser.Math.Between(-90, 90);
     f.spin = Phaser.Math.FloatBetween(-4, 4);
     f.launched = true;
@@ -106,7 +116,7 @@ export class BoardGame extends BaseMinigame {
     if (!prev) return;
     for (const f of this.items) {
       if (!f.launched || f.done) continue;
-      const hit = segmentDistance(prev.x, prev.y, pt.x, pt.y, f.x, f.y) < RADIUS;
+      const hit = segmentDistance(prev.x, prev.y, pt.x, pt.y, f.x, f.y) < this.hitRadius;
       if (hit) this.slice(f, Math.atan2(pt.y - prev.y, pt.x - prev.x));
     }
   }
@@ -152,7 +162,7 @@ export class BoardGame extends BaseMinigame {
       });
       for (const f of this.items) {
         if (!f.launched || f.done) continue;
-        f.vy += GRAVITY * s;
+        f.vy += this.gravity * s;
         f.x += f.vx * s;
         f.y += f.vy * s;
         f.view.setPosition(f.x, f.y).setRotation(f.view.rotation + f.spin * s);
@@ -166,7 +176,7 @@ export class BoardGame extends BaseMinigame {
       }
     }
     for (const h of this.halves) {
-      h.vy += GRAVITY * s;
+      h.vy += this.gravity * s;
       h.img.x += h.vx * s;
       h.img.y += h.vy * s;
       h.img.rotation += h.spin * s;

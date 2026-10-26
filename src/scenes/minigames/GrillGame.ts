@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Quality } from '../../core/types';
-import { combineQuality, gradeGrill } from '../../core/cooking';
+import { combineQuality, gradeGrill, grillGolden } from '../../core/cooking';
 import { COLORS, txt } from '../../ui/theme';
 import { sfx } from '../../ui/sfx';
 import { BaseMinigame } from './base';
@@ -22,10 +22,12 @@ interface Cut {
 /** Three cuts sear at different speeds. Flip each one when it turns golden, twice. */
 export class GrillGame extends BaseMinigame {
   private cuts: Cut[] = [];
+  private golden: { start: number; end: number };
 
-  constructor(scene: Phaser.Scene, root: Phaser.GameObjects.Container, done: (q: Quality) => void) {
+  constructor(scene: Phaser.Scene, root: Phaser.GameObjects.Container, done: (q: Quality) => void, private assist = false) {
     super(scene, root, done, 'Grill', 'Click a cut when it turns golden to flip it. Space flips the hottest.');
 
+    this.golden = grillGolden(assist);
     const grill = scene.add.graphics();
     grill.fillStyle(0x2a2a2a, 1).fillRoundedRect(-460, -180, 920, 420, 16);
     grill.fillStyle(0xd2522a, 0.35).fillRoundedRect(-440, -160, 880, 380, 12);
@@ -56,7 +58,7 @@ export class GrillGame extends BaseMinigame {
 
   private flip(c: Cut, forced = false): void {
     if (this.finished || c.side >= 2) return;
-    c.grades.push(forced ? 0 : gradeGrill(c.heat));
+    c.grades.push(forced ? 0 : gradeGrill(c.heat, this.assist));
     c.side++;
     c.heat = 0;
     c.rate = this.randRate();
@@ -88,15 +90,16 @@ export class GrillGame extends BaseMinigame {
       color = avg === 2 ? 0xb06a2a : avg === 1 ? 0xd8a080 : 0x3a2418;
     } else {
       const h = c.heat;
-      if (h >= 0.65 && h <= 0.95) color = GOLD.color;
+      const { start, end } = this.golden;
+      if (h >= start && h <= end) color = GOLD.color;
       else {
-        const k = h < 0.65
-          ? Phaser.Display.Color.Interpolate.ColorWithColor(RAW, GOLD, 100, (h / 0.65) * 100)
-          : Phaser.Display.Color.Interpolate.ColorWithColor(GOLD, CHAR, 100, Math.min(100, ((h - 0.95) / 0.35) * 100));
+        const k = h < start
+          ? Phaser.Display.Color.Interpolate.ColorWithColor(RAW, GOLD, 100, (h / start) * 100)
+          : Phaser.Display.Color.Interpolate.ColorWithColor(GOLD, CHAR, 100, Math.min(100, ((h - end) / (1.3 - end)) * 100));
         color = Phaser.Display.Color.GetColor(k.r, k.g, k.b);
       }
     }
-    const golden = c.side < 2 && c.heat >= 0.65 && c.heat <= 0.95;
+    const golden = c.side < 2 && c.heat >= this.golden.start && c.heat <= this.golden.end;
     if (golden) g.fillStyle(COLORS.gold, 0.5).fillRoundedRect(-104, -150, 208, 330, 40);
     // a thick cut with a fat cap and sear marks
     g.fillStyle(color, 1).fillRoundedRect(-84, -130, 168, 290, 46);

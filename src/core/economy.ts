@@ -1,4 +1,4 @@
-import type { Dish, DishId, FoodCategory, MealBuffs, NeedId, Quality, Rng } from './types';
+import type { Dish, DishId, FoodCategory, MealBuffs, NeedId, PlatterId, Quality, Rng } from './types';
 import type { GameState } from './state';
 import { INGREDIENTS, INGREDIENT_LIST } from '../data/ingredients';
 import { UPGRADES } from '../data/upgrades';
@@ -78,6 +78,23 @@ export function togglePlatterIngredient(state: GameState, dish: DishId, id: stri
   }
   if (INGREDIENTS[id]?.category !== DISHES[dish].category || list.length >= slotsFor(state.canteenLevel)) return false;
   list.push(id);
+  return true;
+}
+
+/** Stores a platter's current ingredients in a Favorite Platter slot. */
+export function saveFavorite(state: GameState, platter: PlatterId, slot: number): boolean {
+  const list = state.favorites[platter];
+  if (slot < 0 || slot >= list.length || state.platters[platter].length === 0) return false;
+  list[slot] = [...state.platters[platter]];
+  return true;
+}
+
+/** Sets a platter from a Favorite Platter, keeping only unlocked or stocked ingredients that fit the slots. */
+export function loadFavorite(state: GameState, platter: PlatterId, slot: number): boolean {
+  const saved = state.favorites[platter][slot];
+  if (!saved) return false;
+  const usable = saved.filter((id) => state.unlocked.includes(id) || (state.stock[id] ?? 0) > 0);
+  state.platters[platter] = usable.slice(0, slotsFor(state.canteenLevel));
   return true;
 }
 

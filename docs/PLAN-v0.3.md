@@ -1,6 +1,6 @@
 # Hunter's Canteen: v0.3 Implementation Plan (Vertical Slice)
 
-> **Status:** approved plan, not yet implemented. Written 2026-10-26.
+> **Status:** implemented and released as v0.3.0 on 2026-10-26. Deviations: the Rank Trial target became 170 reputation (§6); the pixel pack has no floor or wall tiles, so the ship-timber walls and floor stay code-drawn (§5).
 
 ## Decisions from the design Q&A
 
